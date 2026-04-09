@@ -5,11 +5,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "type": "module",
   "private": true,
   "dependencies": {
+    "eslint": "^9.39.2",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
