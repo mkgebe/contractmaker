@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const starterContracts = [
   {
@@ -26,11 +26,47 @@ const starterContracts = [
   },
 ];
 
+const defaultTemplate = {
+  templateName: 'Comprehensive Services Agreement',
+  agreementType: 'Service Agreement',
+  clientName: 'Acme Design',
+  clientEmail: 'hello@acmedesign.com',
+  clientAddress: '15 Hudson Street, New York, NY 10013',
+  scope:
+    'Provider will deliver website redesign, 5 custom pages, SEO setup, analytics integration, and launch support.',
+  deliverables: 'Design mockups, approved final files, CMS implementation, and launch checklist.',
+  paymentSchedule: '50% deposit at signing, 25% at midpoint, 25% upon delivery.',
+  price: '3000',
+  lateFee: '1.5% monthly late fee after 7 days overdue.',
+  startDate: '2026-04-15',
+  endDate: '2026-05-20',
+  revisionRounds: 'Two rounds of revisions included. Additional revisions billed at $95/hr.',
+  confidentiality:
+    'Both parties agree to protect confidential information and not disclose private project materials.',
+  termination: 'Either party may terminate with 14 days written notice. Fees for completed work remain due.',
+  intellectualProperty:
+    'Final deliverables transfer to the Client after full payment. Provider retains rights to process materials and portfolio display.',
+  governingLaw: 'State of New York',
+  disputeResolution: 'Good-faith mediation followed by binding arbitration if unresolved.',
+  terms: 'Client agrees to communication response times within 2 business days to avoid delivery delays.',
+};
+
+const defaultCompanyProfile = {
+  businessName: 'Harbor Creative LLC',
+  companyEmail: 'contracts@harborcreative.com',
+  companyPhone: '(212) 555-0145',
+  companyAddress: '21 Mercer Street, New York, NY 10013',
+  logoDataUrl: '',
+};
+
 const statusFlow = {
   Draft: 'Sent',
   Sent: 'Signed',
   Signed: 'Signed',
 };
+
+const templateStorageKey = 'contractmaker-templates-v1';
+const profileStorageKey = 'contractmaker-company-profile-v1';
 
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
@@ -45,23 +81,52 @@ function StatusPill({ value }) {
 }
 
 export default function HomePage() {
-  const [form, setForm] = useState({
-    businessName: 'Harbor Creative LLC',
-    clientName: 'Acme Design',
-    scope: 'Website redesign with 5 custom pages and SEO setup.',
-    price: '3000',
-    startDate: '2026-04-15',
-    endDate: '2026-05-20',
-    terms:
-      'Client agrees to 50% upfront and 50% at delivery. Two rounds of revisions are included. Extra revisions billed at $95/hr.',
-  });
-
+  const [form, setForm] = useState(defaultTemplate);
+  const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
+  const [templates, setTemplates] = useState([{ id: 'default-template', ...defaultTemplate }]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('default-template');
+  const [newTemplateName, setNewTemplateName] = useState('');
   const [contracts, setContracts] = useState(starterContracts);
   const [selectedId, setSelectedId] = useState(starterContracts[0].id);
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
 
   const selectedContract = contracts.find((contract) => contract.id === selectedId);
+
+  useEffect(() => {
+    const savedTemplatesRaw = window.localStorage.getItem(templateStorageKey);
+    const savedProfileRaw = window.localStorage.getItem(profileStorageKey);
+
+    if (savedTemplatesRaw) {
+      try {
+        const savedTemplates = JSON.parse(savedTemplatesRaw);
+        if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
+          setTemplates(savedTemplates);
+          setSelectedTemplateId(savedTemplates[0].id);
+          setForm(savedTemplates[0]);
+        }
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
+
+    if (savedProfileRaw) {
+      try {
+        const savedProfile = JSON.parse(savedProfileRaw);
+        setCompanyProfile((prev) => ({ ...prev, ...savedProfile }));
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(templateStorageKey, JSON.stringify(templates));
+  }, [templates]);
+
+  useEffect(() => {
+    window.localStorage.setItem(profileStorageKey, JSON.stringify(companyProfile));
+  }, [companyProfile]);
 
   const stats = useMemo(() => {
     const signedTotal = contracts
@@ -76,10 +141,24 @@ export default function HomePage() {
     };
   }, [contracts]);
 
-  const previewSummary = useMemo(
-    () =>
-      `This Service Agreement is between ${form.businessName} (Provider) and ${form.clientName} (Client). Provider will deliver ${form.scope} between ${form.startDate} and ${form.endDate} for ${formatMoney(Number(form.price || 0))}. ${form.terms}`,
-    [form],
+  const previewSections = useMemo(
+    () => [
+      `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
+      `Client contact: ${form.clientEmail} | ${form.clientAddress}`,
+      `Scope: ${form.scope}`,
+      `Deliverables: ${form.deliverables}`,
+      `Timeline: ${form.startDate} through ${form.endDate}`,
+      `Compensation: ${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
+      `Late fees: ${form.lateFee}`,
+      `Revisions: ${form.revisionRounds}`,
+      `Confidentiality: ${form.confidentiality}`,
+      `Intellectual property: ${form.intellectualProperty}`,
+      `Termination: ${form.termination}`,
+      `Dispute resolution: ${form.disputeResolution}`,
+      `Governing law: ${form.governingLaw}`,
+      `Additional terms: ${form.terms}`,
+    ],
+    [form, companyProfile.businessName],
   );
 
   function updateField(event) {
@@ -87,8 +166,56 @@ export default function HomePage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function updateCompanyField(event) {
+    const { name, value } = event.target;
+    setCompanyProfile((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleLogoUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCompanyProfile((prev) => ({ ...prev, logoDataUrl: String(reader.result || '') }));
+      setBanner(`Logo "${file.name}" added to your company profile.`);
+    };
+    reader.readAsDataURL(file);
+  }
+
   function saveDraft() {
     setBanner(`Draft for ${form.clientName} saved at ${new Date().toLocaleTimeString()}.`);
+  }
+
+  function saveTemplate() {
+    const nextName = newTemplateName.trim() || form.templateName.trim() || 'Untitled Template';
+    const templateId = `tpl-${Date.now()}`;
+    const newTemplate = {
+      ...form,
+      id: templateId,
+      templateName: nextName,
+    };
+
+    setTemplates((prev) => [newTemplate, ...prev]);
+    setSelectedTemplateId(templateId);
+    setForm(newTemplate);
+    setNewTemplateName('');
+    setBanner(`Template "${nextName}" saved. You can reuse it anytime.`);
+  }
+
+  function applyTemplate(event) {
+    const templateId = event.target.value;
+    setSelectedTemplateId(templateId);
+
+    const template = templates.find((item) => item.id === templateId);
+    if (!template) {
+      return;
+    }
+
+    setForm(template);
+    setBanner(`Template "${template.templateName}" applied.`);
   }
 
   function generateShareLink() {
@@ -132,8 +259,8 @@ export default function HomePage() {
         <p className="eyebrow">Contractmaker Platform</p>
         <h1>Design-forward contracts, generated in minutes.</h1>
         <p>
-          Build polished service agreements, share secure signature links, and track deal progress
-          from one dashboard.
+          Build complete legal-ready templates, save reusable versions, add your brand profile, and
+          track deal progress from one dashboard.
         </p>
       </header>
 
@@ -158,22 +285,77 @@ export default function HomePage() {
 
       <section className="grid" aria-label="Builder and preview">
         <article className="card">
-          <h2>Contract Builder</h2>
-          <p className="small">Craft the agreement and instantly preview the final language.</p>
+          <h2>Template Builder</h2>
+          <p className="small">Create comprehensive contracts and save reusable templates.</p>
 
           <div className="field">
-            <label htmlFor="businessName">Business name</label>
-            <input
-              id="businessName"
-              name="businessName"
-              value={form.businessName}
-              onChange={updateField}
-            />
+            <label htmlFor="templatePicker">Use saved template</label>
+            <select id="templatePicker" value={selectedTemplateId} onChange={applyTemplate}>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.templateName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="newTemplateName">New template name</label>
+              <input
+                id="newTemplateName"
+                value={newTemplateName}
+                onChange={(event) => setNewTemplateName(event.target.value)}
+                placeholder="e.g. Monthly Retainer Template"
+              />
+            </div>
+            <div className="align-end">
+              <button className="secondary full-width" type="button" onClick={saveTemplate}>
+                Save as template
+              </button>
+            </div>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="templateName">Template title</label>
+              <input
+                id="templateName"
+                name="templateName"
+                value={form.templateName}
+                onChange={updateField}
+              />
+            </div>
+            <div>
+              <label htmlFor="agreementType">Agreement type</label>
+              <input
+                id="agreementType"
+                name="agreementType"
+                value={form.agreementType}
+                onChange={updateField}
+              />
+            </div>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="clientName">Client legal name</label>
+              <input id="clientName" name="clientName" value={form.clientName} onChange={updateField} />
+            </div>
+            <div>
+              <label htmlFor="clientEmail">Client email</label>
+              <input id="clientEmail" name="clientEmail" value={form.clientEmail} onChange={updateField} />
+            </div>
           </div>
 
           <div className="field">
-            <label htmlFor="clientName">Client name</label>
-            <input id="clientName" name="clientName" value={form.clientName} onChange={updateField} />
+            <label htmlFor="clientAddress">Client address</label>
+            <input
+              id="clientAddress"
+              name="clientAddress"
+              value={form.clientAddress}
+              onChange={updateField}
+            />
           </div>
 
           <div className="field">
@@ -181,43 +363,119 @@ export default function HomePage() {
             <textarea id="scope" name="scope" rows="3" value={form.scope} onChange={updateField} />
           </div>
 
+          <div className="field">
+            <label htmlFor="deliverables">Deliverables</label>
+            <textarea
+              id="deliverables"
+              name="deliverables"
+              rows="3"
+              value={form.deliverables}
+              onChange={updateField}
+            />
+          </div>
+
           <div className="field two-col">
             <div>
-              <label htmlFor="price">Project fee (USD)</label>
-              <input
-                id="price"
-                name="price"
-                inputMode="numeric"
-                value={form.price}
-                onChange={updateField}
-              />
+              <label htmlFor="price">Contract value (USD)</label>
+              <input id="price" name="price" inputMode="numeric" value={form.price} onChange={updateField} />
             </div>
             <div>
-              <label htmlFor="endDate">Delivery date</label>
+              <label htmlFor="paymentSchedule">Payment schedule</label>
               <input
-                id="endDate"
-                name="endDate"
-                type="date"
-                value={form.endDate}
+                id="paymentSchedule"
+                name="paymentSchedule"
+                value={form.paymentSchedule}
                 onChange={updateField}
               />
             </div>
           </div>
 
+          <div className="field two-col">
+            <div>
+              <label htmlFor="lateFee">Late fee clause</label>
+              <input id="lateFee" name="lateFee" value={form.lateFee} onChange={updateField} />
+            </div>
+            <div>
+              <label htmlFor="revisionRounds">Revision clause</label>
+              <input
+                id="revisionRounds"
+                name="revisionRounds"
+                value={form.revisionRounds}
+                onChange={updateField}
+              />
+            </div>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="startDate">Start date</label>
+              <input id="startDate" name="startDate" type="date" value={form.startDate} onChange={updateField} />
+            </div>
+            <div>
+              <label htmlFor="endDate">End date</label>
+              <input id="endDate" name="endDate" type="date" value={form.endDate} onChange={updateField} />
+            </div>
+          </div>
+
           <div className="field">
-            <label htmlFor="startDate">Kickoff date</label>
-            <input
-              id="startDate"
-              name="startDate"
-              type="date"
-              value={form.startDate}
+            <label htmlFor="confidentiality">Confidentiality</label>
+            <textarea
+              id="confidentiality"
+              name="confidentiality"
+              rows="2"
+              value={form.confidentiality}
               onChange={updateField}
             />
           </div>
 
           <div className="field">
-            <label htmlFor="terms">Payment / legal terms</label>
-            <textarea id="terms" name="terms" rows="4" value={form.terms} onChange={updateField} />
+            <label htmlFor="intellectualProperty">Intellectual property</label>
+            <textarea
+              id="intellectualProperty"
+              name="intellectualProperty"
+              rows="2"
+              value={form.intellectualProperty}
+              onChange={updateField}
+            />
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="termination">Termination clause</label>
+              <textarea
+                id="termination"
+                name="termination"
+                rows="2"
+                value={form.termination}
+                onChange={updateField}
+              />
+            </div>
+            <div>
+              <label htmlFor="disputeResolution">Dispute resolution</label>
+              <textarea
+                id="disputeResolution"
+                name="disputeResolution"
+                rows="2"
+                value={form.disputeResolution}
+                onChange={updateField}
+              />
+            </div>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="governingLaw">Governing law</label>
+              <input
+                id="governingLaw"
+                name="governingLaw"
+                value={form.governingLaw}
+                onChange={updateField}
+              />
+            </div>
+            <div>
+              <label htmlFor="terms">Additional terms</label>
+              <input id="terms" name="terms" value={form.terms} onChange={updateField} />
+            </div>
           </div>
 
           <div className="button-row">
@@ -237,13 +495,71 @@ export default function HomePage() {
         </article>
 
         <article className="card">
-          <h2>Live Contract Preview</h2>
+          <h2>Brand Profile & Preview</h2>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="businessName">Company name</label>
+              <input
+                id="businessName"
+                name="businessName"
+                value={companyProfile.businessName}
+                onChange={updateCompanyField}
+              />
+            </div>
+            <div>
+              <label htmlFor="companyEmail">Company email</label>
+              <input
+                id="companyEmail"
+                name="companyEmail"
+                value={companyProfile.companyEmail}
+                onChange={updateCompanyField}
+              />
+            </div>
+          </div>
+
+          <div className="field two-col">
+            <div>
+              <label htmlFor="companyPhone">Company phone</label>
+              <input
+                id="companyPhone"
+                name="companyPhone"
+                value={companyProfile.companyPhone}
+                onChange={updateCompanyField}
+              />
+            </div>
+            <div>
+              <label htmlFor="companyLogo">Company logo</label>
+              <input id="companyLogo" type="file" accept="image/*" onChange={handleLogoUpload} />
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="companyAddress">Company address</label>
+            <input
+              id="companyAddress"
+              name="companyAddress"
+              value={companyProfile.companyAddress}
+              onChange={updateCompanyField}
+            />
+          </div>
+
           <div className="preview">
-            <p className="kicker">Service Agreement Snapshot</p>
+            <p className="kicker">Live Contract Preview</p>
+            {companyProfile.logoDataUrl ? (
+              <img src={companyProfile.logoDataUrl} alt="Company logo" className="logo-preview" />
+            ) : null}
             <h3>
-              {form.businessName} × {form.clientName}
+              {companyProfile.businessName} × {form.clientName}
             </h3>
-            <p>{previewSummary}</p>
+            <p className="small compact">
+              {companyProfile.companyEmail} · {companyProfile.companyPhone}
+              <br />
+              {companyProfile.companyAddress}
+            </p>
+            {previewSections.map((section) => (
+              <p key={section}>{section}</p>
+            ))}
             <p className="small">Signatures: Provider ☐ &nbsp;&nbsp; Client ☐</p>
           </div>
 
