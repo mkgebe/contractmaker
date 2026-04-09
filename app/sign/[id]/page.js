@@ -1,10 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
+
+function decodeSharePayload(payload) {
+  if (!payload || typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
@@ -16,17 +32,16 @@ function formatMoney(amount) {
 
 export default function SignPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id;
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showSignatureCanvas, setShowSignatureCanvas] = useState(false);
-  const [signerName, setSignerName] = useState('');
-  const [hasDrawn, setHasDrawn] = useState(false);
-  const [signatureDate, setSignatureDate] = useState('');
-
-  const canvasRef = useRef(null);
-  const signatureSectionRef = useRef(null);
-  const isDrawingRef = useRef(false);
+  const [signatureFields, setSignatureFields] = useState({
+    providerName: '',
+    providerDate: '',
+    clientName: '',
+    clientDate: '',
+  });
 
   useEffect(() => {
     if (!id || typeof id !== 'string') {
@@ -35,6 +50,18 @@ export default function SignPage() {
       return;
     }
 
+    const sharedPayload = searchParams.get('data');
+    const decodedContract = decodeSharePayload(sharedPayload);
+    if (decodedContract?.id === id) {
+      setContract(decodedContract);
+      if (decodedContract.signatureFields) {
+        setSignatureFields((prev) => ({
+          ...prev,
+          ...decodedContract.signatureFields,
+        }));
+      }
+    }
+
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
 
     if (!savedSharedRaw) {
@@ -44,21 +71,21 @@ export default function SignPage() {
 
     try {
       const sharedContracts = JSON.parse(savedSharedRaw);
-      const activeContract = sharedContracts[id] || null;
+      const activeContract = sharedContracts[id] || decodedContract || null;
       setContract(activeContract);
 
-      const existingSignature = activeContract?.clientSignature;
-      if (existingSignature) {
-        setSignerName(existingSignature.name || '');
-        setSignatureDate(existingSignature.signedAt || '');
-        setShowSignatureCanvas(true);
+      if (activeContract?.signatureFields) {
+        setSignatureFields((prev) => ({
+          ...prev,
+          ...activeContract.signatureFields,
+        }));
       }
     } catch {
       setContract(null);
     }
 
     setLoading(false);
-  }, [id]);
+  }, [id, searchParams]);
 
   const previewSections = useMemo(() => {
     if (!contract) {
@@ -66,154 +93,103 @@ export default function SignPage() {
     }
 
     return [
-      `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
-      `Client contact: ${contract.form.clientEmail} | ${contract.form.clientAddress}`,
-      `Scope: ${contract.form.scope}`,
-      `Deliverables: ${contract.form.deliverables}`,
-      `Timeline: ${contract.form.startDate} through ${contract.form.endDate}`,
-      `Compensation: ${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
-      `Late fees: ${contract.form.lateFee}`,
-      `Revisions: ${contract.form.revisionRounds}`,
-      `Confidentiality: ${contract.form.confidentiality}`,
-      `Intellectual property: ${contract.form.intellectualProperty}`,
-      `Termination: ${contract.form.termination}`,
-      `Dispute resolution: ${contract.form.disputeResolution}`,
-      `Governing law: ${contract.form.governingLaw}`,
-      `Additional terms: ${contract.form.terms}`,
+      {
+        title: 'Agreement',
+        body: `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${contract.form.clientEmail} | ${contract.form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: contract.form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: contract.form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${contract.form.startDate} through ${contract.form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: contract.form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: contract.form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: contract.form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: contract.form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: contract.form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: contract.form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: contract.form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: contract.form.terms,
+      },
+      ...(Array.isArray(contract.form.customFields)
+        ? contract.form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
     ];
   }, [contract]);
 
-  useEffect(() => {
-    if (!showSignatureCanvas) {
-      return;
-    }
+  const updateSignatureField = (event) => {
+    const { name, value } = event.target;
 
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext('2d');
-
-    const setCanvasSize = () => {
-      const ratio = window.devicePixelRatio || 1;
-      const bounds = canvas.getBoundingClientRect();
-      canvas.width = Math.floor(bounds.width * ratio);
-      canvas.height = Math.floor(bounds.height * ratio);
-      context.scale(ratio, ratio);
-      context.lineJoin = 'round';
-      context.lineCap = 'round';
-      context.strokeStyle = '#0f172a';
-      context.lineWidth = 2.5;
-    };
-
-    setCanvasSize();
-    window.addEventListener('resize', setCanvasSize);
-
-    return () => {
-      window.removeEventListener('resize', setCanvasSize);
-    };
-  }, [showSignatureCanvas]);
-
-  const getCanvasPosition = (event) => {
-    const canvas = canvasRef.current;
-    const bounds = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
-    };
-  };
-
-  const startDrawing = (event) => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext('2d');
-    const { x, y } = getCanvasPosition(event);
-
-    isDrawingRef.current = true;
-    context.beginPath();
-    context.moveTo(x, y);
-  };
-
-  const drawSignature = (event) => {
-    if (!isDrawingRef.current) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext('2d');
-    const { x, y } = getCanvasPosition(event);
-
-    context.lineTo(x, y);
-    context.stroke();
-    setHasDrawn(true);
-  };
-
-  const stopDrawing = () => {
-    isDrawingRef.current = false;
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext('2d');
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    setHasDrawn(false);
-  };
-
-  const openSignatureCanvas = () => {
-    setShowSignatureCanvas(true);
-
-    window.requestAnimationFrame(() => {
-      signatureSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
-  const saveClientSignature = () => {
-    const canvas = canvasRef.current;
-
-    if (!signerName.trim() || !hasDrawn || !canvas || !id) {
-      return;
-    }
-
-    const signedAt = new Date().toISOString();
-    setSignatureDate(signedAt);
-
-    const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
-    if (!savedSharedRaw) {
-      return;
-    }
-
-    try {
-      const sharedContracts = JSON.parse(savedSharedRaw);
-      if (!sharedContracts[id]) {
-        return;
-      }
-
-      sharedContracts[id] = {
-        ...sharedContracts[id],
-        clientSignature: {
-          name: signerName.trim(),
-          signedAt,
-          imageDataUrl: canvas.toDataURL('image/png'),
-        },
+    setSignatureFields((prev) => {
+      const next = {
+        ...prev,
+        [name]: value,
       };
 
-      window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
-      setContract(sharedContracts[id]);
-    } catch {
-      // No-op: avoid breaking signature flow if storage data is malformed.
-    }
+      if (id && typeof window !== 'undefined') {
+        const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
+
+        if (savedSharedRaw) {
+          try {
+            const sharedContracts = JSON.parse(savedSharedRaw);
+            if (sharedContracts[id]) {
+              sharedContracts[id] = {
+                ...sharedContracts[id],
+                signatureFields: next,
+              };
+              window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
+            }
+          } catch {
+            // No-op: keep signature data in-memory if parsing fails.
+          }
+        }
+      }
+
+      return next;
+    });
   };
 
   const downloadPdf = () => {
@@ -223,6 +199,9 @@ export default function SignPage() {
 
     window.print();
   };
+
+  const hasProviderSignature = Boolean(signatureFields.providerName && signatureFields.providerDate);
+  const hasClientSignature = Boolean(signatureFields.clientName && signatureFields.clientDate);
 
   if (loading) {
     return (
@@ -260,38 +239,103 @@ export default function SignPage() {
           Created {new Date(contract.createdAt).toLocaleString()}
         </p>
 
-        <div className="review-intro">
-          <p className="proposal-kicker">Proposal overview</p>
-          <p>
-            Review the summary below before accepting and signing. This format mirrors your requested proposal-style
-            presentation.
-          </p>
-        </div>
-
         <div className="button-row sign-actions">
           <button type="button" className="primary" onClick={downloadPdf}>
             Download PDF
           </button>
         </div>
 
-        <div className="preview sign-preview review-format">
-          {contract.companyProfile.logoDataUrl ? (
-            <img src={contract.companyProfile.logoDataUrl} alt="Company logo" className="logo-preview" />
-          ) : null}
-          <h3>
-            {contract.companyProfile.businessName} × {contract.form.clientName}
-          </h3>
-          <p className="small compact">
-            {contract.companyProfile.companyEmail} · {contract.companyProfile.companyPhone}
-            <br />
-            {contract.companyProfile.companyAddress}
+        <div className="preview sign-preview">
+          <div className="preview-head">
+            <div>
+              <h3>
+                {contract.companyProfile.businessName} × {contract.form.clientName}
+              </h3>
+              <p className="small compact">
+                {contract.companyProfile.companyEmail} · {contract.companyProfile.companyPhone}
+                <br />
+                {contract.companyProfile.companyAddress}
+              </p>
+            </div>
+            {contract.companyProfile.logoDataUrl ? (
+              <img src={contract.companyProfile.logoDataUrl} alt="Company logo" className="logo-preview right" />
+            ) : null}
+          </div>
+          {previewSections.map((section) => (
+            <p key={section.id}>
+              <span className="preview-title">{section.title}:</span> {section.body}
+            </p>
+          ))}
+          <p className="small">
+            Signatures: Provider {hasProviderSignature ? '☑' : '☐'} &nbsp;&nbsp; Client{' '}
+            {hasClientSignature ? '☑' : '☐'}
           </p>
-          <div className="review-points">
-            {previewSections.map((section) => (
-              <article key={section} className="review-point">
-                <p>{section}</p>
-              </article>
-            ))}
+          {signatureFields.providerName ? (
+            <p className="small compact">
+              Provider: {signatureFields.providerName} ({signatureFields.providerDate || 'Date pending'})
+            </p>
+          ) : null}
+          {signatureFields.clientName ? (
+            <p className="small compact">
+              Client: {signatureFields.clientName} ({signatureFields.clientDate || 'Date pending'})
+            </p>
+          ) : null}
+          <p className="contract-footer">{contract.companyProfile.companyWebsite}</p>
+        </div>
+
+        <div className="signature-area">
+          <p className="kicker">Online Signature Area</p>
+          <p className="small compact">
+            Enter legal names and signature dates. Data is saved automatically in this shared contract link.
+          </p>
+          <div className="signature-grid">
+            <div className="signature-card">
+              <h4>Document Owner (Provider)</h4>
+              <div className="field">
+                <label htmlFor="providerName">Typed legal name</label>
+                <input
+                  id="providerName"
+                  name="providerName"
+                  value={signatureFields.providerName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.companyProfile.businessName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="providerDate">Signature date</label>
+                <input
+                  id="providerDate"
+                  name="providerDate"
+                  type="date"
+                  value={signatureFields.providerDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
+
+            <div className="signature-card">
+              <h4>Client</h4>
+              <div className="field">
+                <label htmlFor="clientSignName">Typed legal name</label>
+                <input
+                  id="clientSignName"
+                  name="clientName"
+                  value={signatureFields.clientName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.form.clientName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="clientDate">Signature date</label>
+                <input
+                  id="clientDate"
+                  name="clientDate"
+                  type="date"
+                  value={signatureFields.clientDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
