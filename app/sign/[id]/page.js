@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
@@ -13,12 +14,19 @@ function formatMoney(amount) {
   }).format(amount);
 }
 
-export default function SignPage({ params }) {
-  const { id } = params;
+export default function SignPage() {
+  const params = useParams();
+  const id = params?.id;
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!id || typeof id !== 'string') {
+      setContract(null);
+      setLoading(false);
+      return;
+    }
+
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
 
     if (!savedSharedRaw) {
