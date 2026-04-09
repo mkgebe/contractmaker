@@ -206,7 +206,7 @@ export default function SignPage() {
   if (loading) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <p>Loading contract…</p>
         </section>
       </main>
@@ -216,7 +216,7 @@ export default function SignPage() {
   if (!contract) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <h1>Contract not found</h1>
           <p className="small">
             This share link is invalid, expired, or was created on a different browser/device.
@@ -231,7 +231,7 @@ export default function SignPage() {
 
   return (
     <main>
-      <section className="card sign-wrapper">
+      <section className="card sign-wrapper proposal-shell">
         <p className="kicker">Review & sign</p>
         <h1>{contract.form.templateName}</h1>
         <p className="small">
