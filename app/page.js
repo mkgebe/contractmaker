@@ -102,9 +102,11 @@ function StatusPill({ value }) {
 }
 
 export default function HomePage() {
-  const [form, setForm] = useState(defaultTemplate);
+  const [form, setForm] = useState(normalizeTemplate(defaultTemplate));
   const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
-  const [templates, setTemplates] = useState([{ id: 'default-template', ...defaultTemplate }]);
+  const [templates, setTemplates] = useState([
+    { id: 'default-template', ...normalizeTemplate(defaultTemplate) },
+  ]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('default-template');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [contracts, setContracts] = useState(starterContracts);
@@ -113,6 +115,8 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('contracts');
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
+  const [defaultSectionToAdd, setDefaultSectionToAdd] = useState(defaultSectionCatalog[0].id);
+  const [draggingSectionId, setDraggingSectionId] = useState('');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -336,11 +340,12 @@ export default function HomePage() {
   function saveTemplate() {
     const nextName = newTemplateName.trim() || form.templateName.trim() || 'Untitled Template';
     const templateId = `tpl-${Date.now()}`;
-    const newTemplate = {
+    const newTemplate = normalizeTemplate({
       ...form,
       id: templateId,
       templateName: nextName,
-    };
+      customFields: (form.sectionOrder || []).filter((section) => section.type === 'custom'),
+    });
 
     setTemplates((prev) => [newTemplate, ...prev]);
     setSelectedTemplateId(templateId);
@@ -1004,7 +1009,7 @@ export default function HomePage() {
               ) : null}
             </div>
             {previewSections.map((section) => (
-              <p key={section.title}>
+              <p key={section.id}>
                 <span className="preview-title">{section.title}:</span> {section.body}
               </p>
             ))}

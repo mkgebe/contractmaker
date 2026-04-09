@@ -262,7 +262,7 @@ export default function SignPage() {
             ) : null}
           </div>
           {previewSections.map((section) => (
-            <p key={section.title}>
+            <p key={section.id}>
               <span className="preview-title">{section.title}:</span> {section.body}
             </p>
           ))}
