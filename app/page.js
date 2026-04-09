@@ -240,7 +240,7 @@ export default function HomePage() {
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const signId = `${slug}-${Date.now().toString().slice(-6)}`;
-    const nextLink = `/sign/${signId}`;
+    const nextLink = `${window.location.origin}/sign/${signId}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -280,7 +280,7 @@ export default function HomePage() {
 
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
-    setShareLink(`/sign/${signId}`);
+    setShareLink(`${window.location.origin}/sign/${signId}`);
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
