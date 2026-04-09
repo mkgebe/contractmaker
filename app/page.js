@@ -67,6 +67,8 @@ const statusFlow = {
 
 const templateStorageKey = 'contractmaker-templates-v1';
 const profileStorageKey = 'contractmaker-company-profile-v1';
+const contractsStorageKey = 'contractmaker-contracts-v1';
+const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
 
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
@@ -96,6 +98,7 @@ export default function HomePage() {
   useEffect(() => {
     const savedTemplatesRaw = window.localStorage.getItem(templateStorageKey);
     const savedProfileRaw = window.localStorage.getItem(profileStorageKey);
+    const savedContractsRaw = window.localStorage.getItem(contractsStorageKey);
 
     if (savedTemplatesRaw) {
       try {
@@ -118,6 +121,18 @@ export default function HomePage() {
         // Ignore malformed storage data.
       }
     }
+
+    if (savedContractsRaw) {
+      try {
+        const savedContracts = JSON.parse(savedContractsRaw);
+        if (Array.isArray(savedContracts) && savedContracts.length > 0) {
+          setContracts(savedContracts);
+          setSelectedId(savedContracts[0].id);
+        }
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -127,6 +142,10 @@ export default function HomePage() {
   useEffect(() => {
     window.localStorage.setItem(profileStorageKey, JSON.stringify(companyProfile));
   }, [companyProfile]);
+
+  useEffect(() => {
+    window.localStorage.setItem(contractsStorageKey, JSON.stringify(contracts));
+  }, [contracts]);
 
   const stats = useMemo(() => {
     const signedTotal = contracts
@@ -220,13 +239,37 @@ export default function HomePage() {
 
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const nextLink = `https://contractmaker-xi.vercel.app/sign/${slug}-${Date.now().toString().slice(-6)}`;
+    const signId = `${slug}-${Date.now().toString().slice(-6)}`;
+    const nextLink = `/sign/${signId}`;
+
+    const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
+    let sharedContracts = {};
+
+    if (savedSharedRaw) {
+      try {
+        sharedContracts = JSON.parse(savedSharedRaw);
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
+
+    sharedContracts[signId] = {
+      id: signId,
+      contractId: null,
+      form,
+      companyProfile,
+      createdAt: new Date().toISOString(),
+    };
+
+    window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setShareLink(nextLink);
     setBanner('Secure share link generated. Ready to send.');
   }
 
   function createContract() {
     const nextId = `CM-${2400 + contracts.length + 1}`;
+    const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const signId = `${slug}-${Date.now().toString().slice(-6)}`;
     const nextContract = {
       id: nextId,
       client: form.clientName,
@@ -237,6 +280,28 @@ export default function HomePage() {
 
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
+    setShareLink(`/sign/${signId}`);
+
+    const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
+    let sharedContracts = {};
+
+    if (savedSharedRaw) {
+      try {
+        sharedContracts = JSON.parse(savedSharedRaw);
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
+
+    sharedContracts[signId] = {
+      id: signId,
+      contractId: nextId,
+      form,
+      companyProfile,
+      createdAt: new Date().toISOString(),
+    };
+
+    window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setBanner(`New contract ${nextId} created for ${form.clientName}.`);
   }
 
