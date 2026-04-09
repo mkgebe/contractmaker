@@ -410,6 +410,107 @@ button.ghost {
   font-weight: 600;
 }
 
+
+.sign-actions {
+  margin-top: 0.8rem;
+}
+
+.invoice-link-button {
+  display: inline-block;
+  margin-top: 1rem;
+  margin-left: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.invoice-link-button:hover {
+  background: var(--primary-dark);
+}
+
+
+.proposal-sign-card {
+  margin: 1rem 0;
+  border: 1px solid #e7dccf;
+  border-radius: 24px;
+  background: #f8f7f5;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  text-align: center;
+}
+
+.proposal-kicker {
+  margin: 0;
+  color: #c5872b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+}
+
+.proposal-sign-card h2,
+.signature-canvas-card h3 {
+  margin: 0.6rem 0;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  color: #163526;
+  line-height: 1;
+}
+
+.proposal-sign-card h2 span,
+.signature-canvas-card h3 span {
+  font-weight: 800;
+}
+
+.proposal-sign-card h2,
+.signature-canvas-card h3 {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.proposal-copy,
+.signature-intro {
+  max-width: 640px;
+  margin: 0.75rem auto 0;
+  color: #6b7280;
+  font-size: 1.05rem;
+}
+
+.accept-proposal-btn {
+  margin-top: 1.6rem;
+  background: linear-gradient(120deg, #143220 0%, #0f2a1b 100%);
+  color: #fff;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.95rem 1.8rem;
+}
+
+.signature-canvas-card {
+  margin: 1rem 0;
+  border: 1px solid #e7dccf;
+  border-radius: 24px;
+  background: #f8f7f5;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.signature-canvas-card h3 {
+  margin-top: 0.25rem;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 230px;
+  border: 2px dashed #e5ddd5;
+  border-radius: 20px;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.signature-canvas-actions {
+  margin-top: 0.2rem;
+}
+
 @media (max-width: 960px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -441,5 +542,9 @@ button.ghost {
 
   .button-row {
     flex-wrap: wrap;
+  }
+
+  .invoice-link-button {
+    margin-left: 0;
   }
 }
