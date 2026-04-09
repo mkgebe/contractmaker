@@ -81,6 +81,44 @@ const demoCredentials = {
   password: 'ContractMaker2026',
 };
 
+function normalizeTemplate(template = {}) {
+  const customFields = Array.isArray(template.customFields)
+    ? template.customFields.map((field) => ({
+        id: field.id || `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: field.title || '',
+        body: field.body || '',
+      }))
+    : [];
+
+  return {
+    ...defaultTemplate,
+    ...template,
+    customFields,
+  };
+}
+
+function encodeSharePayload(payload) {
+  try {
+    const json = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary);
+  } catch {
+    return '';
+  }
+}
+
+function getShareBaseUrl() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+}
+
 function createCustomField() {
   return {
     id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -115,8 +153,6 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('contracts');
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
-  const [defaultSectionToAdd, setDefaultSectionToAdd] = useState(defaultSectionCatalog[0].id);
-  const [draggingSectionId, setDraggingSectionId] = useState('');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -344,7 +380,7 @@ export default function HomePage() {
       ...form,
       id: templateId,
       templateName: nextName,
-      customFields: (form.sectionOrder || []).filter((section) => section.type === 'custom'),
+      customFields: Array.isArray(form.customFields) ? form.customFields : [],
     });
 
     setTemplates((prev) => [newTemplate, ...prev]);
