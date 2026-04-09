@@ -218,6 +218,31 @@ button.ghost {
   margin-top: 0;
 }
 
+.signature-area {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin-top: 0.6rem;
+}
+
+.signature-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.signature-card h4 {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+}
+
 .logo-preview {
   max-width: 180px;
   max-height: 70px;
@@ -379,6 +404,10 @@ button.ghost {
 
 @media (max-width: 620px) {
   .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .signature-grid {
     grid-template-columns: 1fr;
   }
 
