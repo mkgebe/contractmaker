@@ -101,6 +101,12 @@ export default function HomePage() {
   const [loginError, setLoginError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [signatureFields, setSignatureFields] = useState({
+    providerName: '',
+    providerDate: '',
+    clientName: '',
+    clientDate: '',
+  });
 
   const selectedContract = contracts.find((contract) => contract.id === selectedId);
 
@@ -374,6 +380,11 @@ export default function HomePage() {
     setLoginError('');
     setShareLink('');
     window.localStorage.removeItem(authStorageKey);
+  }
+
+  function updateSignatureField(event) {
+    const { name, value } = event.target;
+    setSignatureFields((prev) => ({ ...prev, [name]: value }));
   }
 
   if (!authReady) {
@@ -753,7 +764,61 @@ export default function HomePage() {
             {previewSections.map((section) => (
               <p key={section}>{section}</p>
             ))}
-            <p className="small">Signatures: Provider ☐ &nbsp;&nbsp; Client ☐</p>
+            <div className="signature-area">
+              <p className="kicker">Online Signature Area</p>
+              <p className="small compact">
+                Client and Document Owner can type their legal names and signature dates below.
+              </p>
+              <div className="signature-grid">
+                <div className="signature-card">
+                  <h4>Document Owner (Provider)</h4>
+                  <div className="field">
+                    <label htmlFor="providerName">Typed legal name</label>
+                    <input
+                      id="providerName"
+                      name="providerName"
+                      value={signatureFields.providerName}
+                      onChange={updateSignatureField}
+                      placeholder={companyProfile.businessName}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="providerDate">Signature date</label>
+                    <input
+                      id="providerDate"
+                      name="providerDate"
+                      type="date"
+                      value={signatureFields.providerDate}
+                      onChange={updateSignatureField}
+                    />
+                  </div>
+                </div>
+
+                <div className="signature-card">
+                  <h4>Client</h4>
+                  <div className="field">
+                    <label htmlFor="clientSignName">Typed legal name</label>
+                    <input
+                      id="clientSignName"
+                      name="clientName"
+                      value={signatureFields.clientName}
+                      onChange={updateSignatureField}
+                      placeholder={form.clientName}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="clientDate">Signature date</label>
+                    <input
+                      id="clientDate"
+                      name="clientDate"
+                      type="date"
+                      value={signatureFields.clientDate}
+                      onChange={updateSignatureField}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="notice" role="status">
