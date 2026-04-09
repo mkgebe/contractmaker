@@ -1,6 +1,8 @@
+import './globals.css';
+
 export const metadata = {
-  title: 'Contractmaker',
-  description: 'Next.js app for contractmaker',
+  title: 'Contractmaker | Service Contract Builder',
+  description: 'Draft, send, and sign branded service contracts online.',
 };
 
 export default function RootLayout({ children }) {
