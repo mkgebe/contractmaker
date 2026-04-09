@@ -50,20 +50,62 @@ export default function SignPage() {
     }
 
     return [
-      `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
-      `Client contact: ${contract.form.clientEmail} | ${contract.form.clientAddress}`,
-      `Scope: ${contract.form.scope}`,
-      `Deliverables: ${contract.form.deliverables}`,
-      `Timeline: ${contract.form.startDate} through ${contract.form.endDate}`,
-      `Compensation: ${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
-      `Late fees: ${contract.form.lateFee}`,
-      `Revisions: ${contract.form.revisionRounds}`,
-      `Confidentiality: ${contract.form.confidentiality}`,
-      `Intellectual property: ${contract.form.intellectualProperty}`,
-      `Termination: ${contract.form.termination}`,
-      `Dispute resolution: ${contract.form.disputeResolution}`,
-      `Governing law: ${contract.form.governingLaw}`,
-      `Additional terms: ${contract.form.terms}`,
+      {
+        title: 'Agreement',
+        body: `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${contract.form.clientEmail} | ${contract.form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: contract.form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: contract.form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${contract.form.startDate} through ${contract.form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: contract.form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: contract.form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: contract.form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: contract.form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: contract.form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: contract.form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: contract.form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: contract.form.terms,
+      },
     ];
   }, [contract]);
 
@@ -104,21 +146,28 @@ export default function SignPage() {
         </p>
 
         <div className="preview sign-preview">
-          {contract.companyProfile.logoDataUrl ? (
-            <img src={contract.companyProfile.logoDataUrl} alt="Company logo" className="logo-preview" />
-          ) : null}
-          <h3>
-            {contract.companyProfile.businessName} × {contract.form.clientName}
-          </h3>
-          <p className="small compact">
-            {contract.companyProfile.companyEmail} · {contract.companyProfile.companyPhone}
-            <br />
-            {contract.companyProfile.companyAddress}
-          </p>
+          <div className="preview-head">
+            <div>
+              <h3>
+                {contract.companyProfile.businessName} × {contract.form.clientName}
+              </h3>
+              <p className="small compact">
+                {contract.companyProfile.companyEmail} · {contract.companyProfile.companyPhone}
+                <br />
+                {contract.companyProfile.companyAddress}
+              </p>
+            </div>
+            {contract.companyProfile.logoDataUrl ? (
+              <img src={contract.companyProfile.logoDataUrl} alt="Company logo" className="logo-preview right" />
+            ) : null}
+          </div>
           {previewSections.map((section) => (
-            <p key={section}>{section}</p>
+            <p key={section.title}>
+              <span className="preview-title">{section.title}:</span> {section.body}
+            </p>
           ))}
           <p className="small">Signatures: Provider ☐ &nbsp;&nbsp; Client ☐</p>
+          <p className="contract-footer">{contract.companyProfile.companyWebsite}</p>
         </div>
 
         <Link href="/" className="sign-back-link">
