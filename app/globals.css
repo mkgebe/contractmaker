@@ -176,6 +176,68 @@ textarea {
   margin-top: 0.65rem;
 }
 
+.custom-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-add-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.section-add-default {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.section-add-default select {
+  min-width: 210px;
+}
+
+.custom-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.custom-field-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #fff;
+}
+
+.remove-field-button {
+  margin-top: 0.2rem;
+}
+
+.section-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.section-actions button {
+  padding: 0.35rem 0.55rem;
+}
+
+.section-default-name {
+  margin: 0.35rem 0 0;
+}
+
 button {
   border: none;
   border-radius: 10px;
