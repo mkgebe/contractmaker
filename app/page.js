@@ -443,6 +443,10 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     const payload = encodeSharePayload(shareData);
+    if (!payload) {
+      setBanner('Unable to generate a secure share link. Please try again.');
+      return;
+    }
     const nextLink = `${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
@@ -485,6 +489,10 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     const payload = encodeSharePayload(shareData);
+    if (!payload) {
+      setBanner('Contract created, but we could not generate a share link. Please try again.');
+      return;
+    }
 
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
