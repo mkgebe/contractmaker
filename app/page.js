@@ -81,6 +81,29 @@ const demoCredentials = {
   password: 'ContractMaker2026',
 };
 
+function encodeSharePayload(data) {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  try {
+    const json = JSON.stringify(data);
+    const bytes = new TextEncoder().encode(json);
+    const binary = String.fromCharCode(...bytes);
+    return btoa(binary);
+  } catch {
+    return '';
+  }
+}
+
+function getShareBaseUrl() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return window.location.origin;
+}
+
 function createCustomField() {
   return {
     id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -402,6 +425,10 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     const payload = encodeSharePayload(shareData);
+    if (!payload) {
+      setBanner('Unable to generate a secure share link. Please try again.');
+      return;
+    }
     const nextLink = `${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
@@ -444,6 +471,10 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     const payload = encodeSharePayload(shareData);
+    if (!payload) {
+      setBanner('Contract created, but we could not generate a share link. Please try again.');
+      return;
+    }
 
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
