@@ -362,6 +362,7 @@ export default function HomePage() {
       contractId: null,
       form,
       companyProfile,
+      signatureFields,
       createdAt: new Date().toISOString(),
     };
 
@@ -403,6 +404,7 @@ export default function HomePage() {
       contractId: nextId,
       form,
       companyProfile,
+      signatureFields,
       createdAt: new Date().toISOString(),
     };
 
