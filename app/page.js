@@ -52,6 +52,7 @@ const defaultTemplate = {
   governingLaw: 'State of New York',
   disputeResolution: 'Good-faith mediation followed by binding arbitration if unresolved.',
   terms: 'Client agrees to communication response times within 2 business days to avoid delivery delays.',
+  customFields: [],
 };
 
 const defaultCompanyProfile = {
@@ -59,6 +60,7 @@ const defaultCompanyProfile = {
   companyEmail: 'contracts@harborcreative.com',
   companyPhone: '(212) 555-0145',
   companyAddress: '21 Mercer Street, New York, NY 10013',
+  companyWebsite: 'www.harborcreative.com',
   logoDataUrl: '',
 };
 
@@ -79,6 +81,14 @@ const demoCredentials = {
   password: 'ContractMaker2026',
 };
 
+function createCustomField() {
+  return {
+    id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: '',
+    body: '',
+  };
+}
+
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -92,9 +102,11 @@ function StatusPill({ value }) {
 }
 
 export default function HomePage() {
-  const [form, setForm] = useState(defaultTemplate);
+  const [form, setForm] = useState(normalizeTemplate(defaultTemplate));
   const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
-  const [templates, setTemplates] = useState([{ id: 'default-template', ...defaultTemplate }]);
+  const [templates, setTemplates] = useState([
+    { id: 'default-template', ...normalizeTemplate(defaultTemplate) },
+  ]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('default-template');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [contracts, setContracts] = useState(starterContracts);
@@ -103,6 +115,8 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('contracts');
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
+  const [defaultSectionToAdd, setDefaultSectionToAdd] = useState(defaultSectionCatalog[0].id);
+  const [draggingSectionId, setDraggingSectionId] = useState('');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -136,9 +150,13 @@ export default function HomePage() {
       try {
         const savedTemplates = JSON.parse(savedTemplatesRaw);
         if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
-          setTemplates(savedTemplates);
-          setSelectedTemplateId(savedTemplates[0].id);
-          setForm(savedTemplates[0]);
+          const normalizedTemplates = savedTemplates.map((template) => ({
+            ...template,
+            customFields: Array.isArray(template.customFields) ? template.customFields : [],
+          }));
+          setTemplates(normalizedTemplates);
+          setSelectedTemplateId(normalizedTemplates[0].id);
+          setForm(normalizedTemplates[0]);
         }
       } catch {
         // Ignore malformed storage data.
@@ -223,20 +241,70 @@ export default function HomePage() {
 
   const previewSections = useMemo(
     () => [
-      `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
-      `Client contact: ${form.clientEmail} | ${form.clientAddress}`,
-      `Scope: ${form.scope}`,
-      `Deliverables: ${form.deliverables}`,
-      `Timeline: ${form.startDate} through ${form.endDate}`,
-      `Compensation: ${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
-      `Late fees: ${form.lateFee}`,
-      `Revisions: ${form.revisionRounds}`,
-      `Confidentiality: ${form.confidentiality}`,
-      `Intellectual property: ${form.intellectualProperty}`,
-      `Termination: ${form.termination}`,
-      `Dispute resolution: ${form.disputeResolution}`,
-      `Governing law: ${form.governingLaw}`,
-      `Additional terms: ${form.terms}`,
+      {
+        title: 'Agreement',
+        body: `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${form.clientEmail} | ${form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${form.startDate} through ${form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: form.terms,
+      },
+      ...(Array.isArray(form.customFields)
+        ? form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
     ],
     [form, companyProfile.businessName],
   );
@@ -272,11 +340,12 @@ export default function HomePage() {
   function saveTemplate() {
     const nextName = newTemplateName.trim() || form.templateName.trim() || 'Untitled Template';
     const templateId = `tpl-${Date.now()}`;
-    const newTemplate = {
+    const newTemplate = normalizeTemplate({
       ...form,
       id: templateId,
       templateName: nextName,
-    };
+      customFields: (form.sectionOrder || []).filter((section) => section.type === 'custom'),
+    });
 
     setTemplates((prev) => [newTemplate, ...prev]);
     setSelectedTemplateId(templateId);
@@ -294,14 +363,51 @@ export default function HomePage() {
       return;
     }
 
-    setForm(template);
+    setForm({
+      ...template,
+      customFields: Array.isArray(template.customFields) ? template.customFields : [],
+    });
     setBanner(`Template "${template.templateName}" applied.`);
+  }
+
+  function addCustomField() {
+    setForm((prev) => ({
+      ...prev,
+      customFields: [...(Array.isArray(prev.customFields) ? prev.customFields : []), createCustomField()],
+    }));
+  }
+
+  function updateCustomField(fieldId, key, value) {
+    setForm((prev) => ({
+      ...prev,
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).map((field) =>
+        field.id === fieldId ? { ...field, [key]: value } : field,
+      ),
+    }));
+  }
+
+  function removeCustomField(fieldId) {
+    setForm((prev) => ({
+      ...prev,
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).filter(
+        (field) => field.id !== fieldId,
+      ),
+    }));
   }
 
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const signId = `${slug}-${Date.now().toString().slice(-6)}`;
-    const nextLink = `${window.location.origin}/sign/${signId}`;
+    const shareData = {
+      id: signId,
+      contractId: null,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+    const nextLink = `${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -314,13 +420,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: null,
-      form,
-      companyProfile,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setShareLink(nextLink);
@@ -340,9 +440,19 @@ export default function HomePage() {
       dueDate: form.endDate,
     };
 
+    const shareData = {
+      id: signId,
+      contractId: nextId,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
-    setShareLink(`${window.location.origin}/sign/${signId}`);
+    setShareLink(`${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`);
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -355,13 +465,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: nextId,
-      form,
-      companyProfile,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setBanner(`New contract ${nextId} created for ${form.clientName}.`);
@@ -764,6 +868,51 @@ export default function HomePage() {
             </div>
           </div>
 
+          <div className="field">
+            <div className="custom-fields-head">
+              <label>Additional custom fields</label>
+              <button className="ghost" type="button" onClick={addCustomField}>
+                Add field
+              </button>
+            </div>
+            {Array.isArray(form.customFields) && form.customFields.length > 0 ? (
+              <div className="custom-fields-list">
+                {form.customFields.map((field, index) => (
+                  <div key={field.id} className="custom-field-card">
+                    <div className="field">
+                      <label htmlFor={`customTitle-${field.id}`}>Field title #{index + 1}</label>
+                      <input
+                        id={`customTitle-${field.id}`}
+                        value={field.title}
+                        onChange={(event) => updateCustomField(field.id, 'title', event.target.value)}
+                        placeholder="e.g. Non-solicitation"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`customBody-${field.id}`}>Field details</label>
+                      <textarea
+                        id={`customBody-${field.id}`}
+                        rows="2"
+                        value={field.body}
+                        onChange={(event) => updateCustomField(field.id, 'body', event.target.value)}
+                        placeholder="Describe this contract clause."
+                      />
+                    </div>
+                    <button
+                      className="ghost remove-field-button"
+                      type="button"
+                      onClick={() => removeCustomField(field.id)}
+                    >
+                      Remove field
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="small">No custom fields yet. Add one to include extra clauses in this contract.</p>
+            )}
+          </div>
+
           <div className="button-row">
             <button className="primary" type="button" onClick={saveDraft}>
               Save draft
@@ -820,31 +969,49 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="companyAddress">Company address</label>
-            <input
-              id="companyAddress"
-              name="companyAddress"
-              value={companyProfile.companyAddress}
-              onChange={updateCompanyField}
-            />
+          <div className="field two-col">
+            <div>
+              <label htmlFor="companyAddress">Company address</label>
+              <input
+                id="companyAddress"
+                name="companyAddress"
+                value={companyProfile.companyAddress}
+                onChange={updateCompanyField}
+              />
+            </div>
+            <div>
+              <label htmlFor="companyWebsite">Company website</label>
+              <input
+                id="companyWebsite"
+                name="companyWebsite"
+                value={companyProfile.companyWebsite}
+                onChange={updateCompanyField}
+                placeholder="www.yourcompany.com"
+              />
+            </div>
           </div>
 
           <div className="preview">
             <p className="kicker">Live Contract Preview</p>
-            {companyProfile.logoDataUrl ? (
-              <img src={companyProfile.logoDataUrl} alt="Company logo" className="logo-preview" />
-            ) : null}
-            <h3>
-              {companyProfile.businessName} × {form.clientName}
-            </h3>
-            <p className="small compact">
-              {companyProfile.companyEmail} · {companyProfile.companyPhone}
-              <br />
-              {companyProfile.companyAddress}
-            </p>
+            <div className="preview-head">
+              <div>
+                <h3>
+                  {companyProfile.businessName} × {form.clientName}
+                </h3>
+                <p className="small compact">
+                  {companyProfile.companyEmail} · {companyProfile.companyPhone}
+                  <br />
+                  {companyProfile.companyAddress}
+                </p>
+              </div>
+              {companyProfile.logoDataUrl ? (
+                <img src={companyProfile.logoDataUrl} alt="Company logo" className="logo-preview right" />
+              ) : null}
+            </div>
             {previewSections.map((section) => (
-              <p key={section}>{section}</p>
+              <p key={section.id}>
+                <span className="preview-title">{section.title}:</span> {section.body}
+              </p>
             ))}
             <div className="signature-area">
               <p className="kicker">Online Signature Area</p>
@@ -901,6 +1068,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+            <p className="contract-footer">{companyProfile.companyWebsite}</p>
           </div>
 
           <div className="notice" role="status">

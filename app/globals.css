@@ -111,6 +111,7 @@ main {
 .card h2 {
   margin: 0;
   font-size: 1.1rem;
+  font-weight: 800;
 }
 
 .field {
@@ -139,6 +140,7 @@ label {
   display: block;
   font-size: 0.86rem;
   color: var(--muted);
+  font-weight: 700;
 }
 
 input,
@@ -172,6 +174,31 @@ textarea {
 
 .button-row.compact {
   margin-top: 0.65rem;
+}
+
+.custom-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.custom-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.custom-field-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #fff;
+}
+
+.remove-field-button {
+  margin-top: 0.2rem;
 }
 
 button {
@@ -216,6 +243,19 @@ button.ghost {
 
 .preview h3 {
   margin-top: 0;
+  font-weight: 800;
+}
+
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 0.55rem;
+}
+
+.preview-title {
+  font-weight: 800;
 }
 
 .signature-area {
@@ -249,6 +289,20 @@ button.ghost {
   width: auto;
   object-fit: contain;
   margin-bottom: 0.6rem;
+}
+
+.logo-preview.right {
+  margin-bottom: 0;
+  margin-left: auto;
+}
+
+.contract-footer {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-weight: 700;
+  color: #374151;
 }
 
 .notice {
@@ -431,86 +485,6 @@ button.ghost {
   background: var(--primary-dark);
 }
 
-
-.proposal-sign-card {
-  margin: 1rem 0;
-  border: 1px solid #e7dccf;
-  border-radius: 24px;
-  background: #f8f7f5;
-  padding: clamp(1.5rem, 5vw, 3rem);
-  text-align: center;
-}
-
-.proposal-kicker {
-  margin: 0;
-  color: #c5872b;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.85rem;
-}
-
-.proposal-sign-card h2,
-.signature-canvas-card h3 {
-  margin: 0.6rem 0;
-  font-size: clamp(2rem, 5vw, 3.4rem);
-  color: #163526;
-  line-height: 1;
-}
-
-.proposal-sign-card h2 span,
-.signature-canvas-card h3 span {
-  font-weight: 800;
-}
-
-.proposal-sign-card h2,
-.signature-canvas-card h3 {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-.proposal-copy,
-.signature-intro {
-  max-width: 640px;
-  margin: 0.75rem auto 0;
-  color: #6b7280;
-  font-size: 1.05rem;
-}
-
-.accept-proposal-btn {
-  margin-top: 1.6rem;
-  background: linear-gradient(120deg, #143220 0%, #0f2a1b 100%);
-  color: #fff;
-  border-radius: 999px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.95rem 1.8rem;
-}
-
-.signature-canvas-card {
-  margin: 1rem 0;
-  border: 1px solid #e7dccf;
-  border-radius: 24px;
-  background: #f8f7f5;
-  padding: clamp(1.25rem, 4vw, 2.5rem);
-}
-
-.signature-canvas-card h3 {
-  margin-top: 0.25rem;
-}
-
-.signature-canvas {
-  width: 100%;
-  height: 230px;
-  border: 2px dashed #e5ddd5;
-  border-radius: 20px;
-  background: #fff;
-  touch-action: none;
-  cursor: crosshair;
-}
-
-.signature-canvas-actions {
-  margin-top: 0.2rem;
-}
-
 @media (max-width: 960px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -533,6 +507,10 @@ button.ghost {
 
   .signature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .preview-head {
+    flex-direction: column;
   }
 
   .table {
