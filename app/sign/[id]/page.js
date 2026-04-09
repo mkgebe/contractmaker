@@ -1,66 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
 
-const defaultSectionCatalog = [
-  { id: 'agreement', title: 'Agreement' },
-  { id: 'clientContact', title: 'Client contact' },
-  { id: 'scope', title: 'Scope' },
-  { id: 'deliverables', title: 'Deliverables' },
-  { id: 'timeline', title: 'Timeline' },
-  { id: 'compensation', title: 'Compensation' },
-  { id: 'lateFees', title: 'Late fees' },
-  { id: 'revisions', title: 'Revisions' },
-  { id: 'confidentiality', title: 'Confidentiality' },
-  { id: 'intellectualProperty', title: 'Intellectual property' },
-  { id: 'termination', title: 'Termination' },
-  { id: 'disputeResolution', title: 'Dispute resolution' },
-  { id: 'governingLaw', title: 'Governing law' },
-  { id: 'terms', title: 'Additional terms' },
-];
+function decodeSharePayload(payload) {
+  if (!payload || typeof window === 'undefined') {
+    return null;
+  }
 
-const defaultSectionMap = Object.fromEntries(defaultSectionCatalog.map((section) => [section.id, section]));
-
-function getDefaultSectionOrder() {
-  return defaultSectionCatalog.map((section) => ({ id: section.id, type: 'default' }));
-}
-
-function getSectionBody(sectionId, form, companyProfile) {
-  switch (sectionId) {
-    case 'agreement':
-      return `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`;
-    case 'clientContact':
-      return `${form.clientEmail} | ${form.clientAddress}`;
-    case 'scope':
-      return form.scope;
-    case 'deliverables':
-      return form.deliverables;
-    case 'timeline':
-      return `${form.startDate} through ${form.endDate}`;
-    case 'compensation':
-      return `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`;
-    case 'lateFees':
-      return form.lateFee;
-    case 'revisions':
-      return form.revisionRounds;
-    case 'confidentiality':
-      return form.confidentiality;
-    case 'intellectualProperty':
-      return form.intellectualProperty;
-    case 'termination':
-      return form.termination;
-    case 'disputeResolution':
-      return form.disputeResolution;
-    case 'governingLaw':
-      return form.governingLaw;
-    case 'terms':
-      return form.terms;
-    default:
-      return '';
+  try {
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
@@ -74,6 +32,7 @@ function formatMoney(amount) {
 
 export default function SignPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id;
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +50,18 @@ export default function SignPage() {
       return;
     }
 
+    const sharedPayload = searchParams.get('data');
+    const decodedContract = decodeSharePayload(sharedPayload);
+    if (decodedContract?.id === id) {
+      setContract(decodedContract);
+      if (decodedContract.signatureFields) {
+        setSignatureFields((prev) => ({
+          ...prev,
+          ...decodedContract.signatureFields,
+        }));
+      }
+    }
+
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
 
     if (!savedSharedRaw) {
@@ -100,7 +71,7 @@ export default function SignPage() {
 
     try {
       const sharedContracts = JSON.parse(savedSharedRaw);
-      const activeContract = sharedContracts[id] || null;
+      const activeContract = sharedContracts[id] || decodedContract || null;
       setContract(activeContract);
 
       if (activeContract?.signatureFields) {
@@ -114,48 +85,79 @@ export default function SignPage() {
     }
 
     setLoading(false);
-  }, [id]);
+  }, [id, searchParams]);
 
   const previewSections = useMemo(() => {
     if (!contract) {
       return [];
     }
 
-    const legacyCustomSections = Array.isArray(contract.form.customFields)
-      ? contract.form.customFields.map((field) => ({
-          id: field.id,
-          type: 'custom',
-          title: field.title || '',
-          body: field.body || '',
-        }))
-      : [];
-
-    const sections =
-      Array.isArray(contract.form.sectionOrder) && contract.form.sectionOrder.length > 0
-        ? contract.form.sectionOrder
-        : [...getDefaultSectionOrder(), ...legacyCustomSections];
-
-    return sections
-      .map((section) => {
-        if (section.type === 'default') {
-          const definition = defaultSectionMap[section.id];
-          if (!definition) {
-            return null;
-          }
-          return {
-            id: section.id,
-            title: definition.title,
-            body: getSectionBody(section.id, contract.form, contract.companyProfile).trim(),
-          };
-        }
-
-        return {
-          id: section.id,
-          title: (section.title || '').trim() || 'Custom field',
-          body: (section.body || '').trim(),
-        };
-      })
-      .filter((section) => section && section.body);
+    return [
+      {
+        title: 'Agreement',
+        body: `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${contract.form.clientEmail} | ${contract.form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: contract.form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: contract.form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${contract.form.startDate} through ${contract.form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: contract.form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: contract.form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: contract.form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: contract.form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: contract.form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: contract.form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: contract.form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: contract.form.terms,
+      },
+      ...(Array.isArray(contract.form.customFields)
+        ? contract.form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
+    ];
   }, [contract]);
 
   const updateSignatureField = (event) => {
@@ -198,10 +200,13 @@ export default function SignPage() {
     window.print();
   };
 
+  const hasProviderSignature = Boolean(signatureFields.providerName && signatureFields.providerDate);
+  const hasClientSignature = Boolean(signatureFields.clientName && signatureFields.clientDate);
+
   if (loading) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <p>Loading contract…</p>
         </section>
       </main>
@@ -211,7 +216,7 @@ export default function SignPage() {
   if (!contract) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <h1>Contract not found</h1>
           <p className="small">
             This share link is invalid, expired, or was created on a different browser/device.
@@ -226,7 +231,7 @@ export default function SignPage() {
 
   return (
     <main>
-      <section className="card sign-wrapper">
+      <section className="card sign-wrapper proposal-shell">
         <p className="kicker">Review & sign</p>
         <h1>{contract.form.templateName}</h1>
         <p className="small">
@@ -261,9 +266,144 @@ export default function SignPage() {
               <span className="preview-title">{section.title}:</span> {section.body}
             </p>
           ))}
-          <p className="small">Signatures: Provider ☐ &nbsp;&nbsp; Client ☐</p>
+          <p className="small">
+            Signatures: Provider {hasProviderSignature ? '☑' : '☐'} &nbsp;&nbsp; Client{' '}
+            {hasClientSignature ? '☑' : '☐'}
+          </p>
+          {signatureFields.providerName ? (
+            <p className="small compact">
+              Provider: {signatureFields.providerName} ({signatureFields.providerDate || 'Date pending'})
+            </p>
+          ) : null}
+          {signatureFields.clientName ? (
+            <p className="small compact">
+              Client: {signatureFields.clientName} ({signatureFields.clientDate || 'Date pending'})
+            </p>
+          ) : null}
           <p className="contract-footer">{contract.companyProfile.companyWebsite}</p>
         </div>
+
+        <div className="signature-area">
+          <p className="kicker">Online Signature Area</p>
+          <p className="small compact">
+            Enter legal names and signature dates. Data is saved automatically in this shared contract link.
+          </p>
+          <div className="signature-grid">
+            <div className="signature-card">
+              <h4>Document Owner (Provider)</h4>
+              <div className="field">
+                <label htmlFor="providerName">Typed legal name</label>
+                <input
+                  id="providerName"
+                  name="providerName"
+                  value={signatureFields.providerName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.companyProfile.businessName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="providerDate">Signature date</label>
+                <input
+                  id="providerDate"
+                  name="providerDate"
+                  type="date"
+                  value={signatureFields.providerDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
+
+            <div className="signature-card">
+              <h4>Client</h4>
+              <div className="field">
+                <label htmlFor="clientSignName">Typed legal name</label>
+                <input
+                  id="clientSignName"
+                  name="clientName"
+                  value={signatureFields.clientName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.form.clientName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="clientDate">Signature date</label>
+                <input
+                  id="clientDate"
+                  name="clientDate"
+                  type="date"
+                  value={signatureFields.clientDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section className="proposal-sign-card" aria-label="Accept proposal">
+          <p className="proposal-kicker">Ready to proceed?</p>
+          <h2>
+            <span>LET&apos;S</span> go
+          </h2>
+          <p className="proposal-copy">
+            Accept this proposal to kick things off. Your signature confirms the scope, timeline, and payment
+            terms.
+          </p>
+          <button type="button" className="accept-proposal-btn" onClick={openSignatureCanvas}>
+            Accept &amp; Sign Proposal
+          </button>
+        </section>
+
+        {showSignatureCanvas ? (
+          <section className="signature-canvas-card" ref={signatureSectionRef}>
+            <p className="proposal-kicker">Accept &amp; sign</p>
+            <h3>
+              <span>SIGN</span> below
+            </h3>
+            <p className="small compact signature-intro">
+              By signing, you agree to the scope, pricing, and payment terms outlined in this proposal.
+            </p>
+
+            <div className="field">
+              <label htmlFor="signerName">Your full name</label>
+              <input
+                id="signerName"
+                value={signerName}
+                onChange={(event) => setSignerName(event.target.value)}
+                placeholder={contract.form.clientName}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="signatureCanvas">Draw your signature</label>
+              <canvas
+                id="signatureCanvas"
+                ref={canvasRef}
+                className="signature-canvas"
+                onPointerDown={startDrawing}
+                onPointerMove={drawSignature}
+                onPointerUp={stopDrawing}
+                onPointerLeave={stopDrawing}
+              />
+            </div>
+
+            <div className="button-row signature-canvas-actions">
+              <button type="button" className="secondary" onClick={saveClientSignature}>
+                Accept &amp; Sign
+              </button>
+              <button type="button" className="ghost" onClick={clearSignature}>
+                Clear
+              </button>
+            </div>
+
+            {!signerName.trim() || !hasDrawn ? (
+              <p className="small">Enter your full name and draw your signature to complete signing.</p>
+            ) : null}
+
+            {signatureDate ? (
+              <p className="small">Signed by {signerName} on {new Date(signatureDate).toLocaleString()}.</p>
+            ) : null}
+          </section>
+        ) : null}
 
         <Link href="/" className="sign-back-link">
           Back to dashboard
