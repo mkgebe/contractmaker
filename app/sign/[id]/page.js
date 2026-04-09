@@ -163,6 +163,9 @@ export default function SignPage() {
     window.print();
   };
 
+  const hasProviderSignature = Boolean(signatureFields.providerName && signatureFields.providerDate);
+  const hasClientSignature = Boolean(signatureFields.clientName && signatureFields.clientDate);
+
   if (loading) {
     return (
       <main>
@@ -226,8 +229,77 @@ export default function SignPage() {
               <span className="preview-title">{section.title}:</span> {section.body}
             </p>
           ))}
-          <p className="small">Signatures: Provider ☐ &nbsp;&nbsp; Client ☐</p>
+          <p className="small">
+            Signatures: Provider {hasProviderSignature ? '☑' : '☐'} &nbsp;&nbsp; Client{' '}
+            {hasClientSignature ? '☑' : '☐'}
+          </p>
+          {signatureFields.providerName ? (
+            <p className="small compact">
+              Provider: {signatureFields.providerName} ({signatureFields.providerDate || 'Date pending'})
+            </p>
+          ) : null}
+          {signatureFields.clientName ? (
+            <p className="small compact">
+              Client: {signatureFields.clientName} ({signatureFields.clientDate || 'Date pending'})
+            </p>
+          ) : null}
           <p className="contract-footer">{contract.companyProfile.companyWebsite}</p>
+        </div>
+
+        <div className="signature-area">
+          <p className="kicker">Online Signature Area</p>
+          <p className="small compact">
+            Enter legal names and signature dates. Data is saved automatically in this shared contract link.
+          </p>
+          <div className="signature-grid">
+            <div className="signature-card">
+              <h4>Document Owner (Provider)</h4>
+              <div className="field">
+                <label htmlFor="providerName">Typed legal name</label>
+                <input
+                  id="providerName"
+                  name="providerName"
+                  value={signatureFields.providerName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.companyProfile.businessName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="providerDate">Signature date</label>
+                <input
+                  id="providerDate"
+                  name="providerDate"
+                  type="date"
+                  value={signatureFields.providerDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
+
+            <div className="signature-card">
+              <h4>Client</h4>
+              <div className="field">
+                <label htmlFor="clientSignName">Typed legal name</label>
+                <input
+                  id="clientSignName"
+                  name="clientName"
+                  value={signatureFields.clientName}
+                  onChange={updateSignatureField}
+                  placeholder={contract.form.clientName}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="clientDate">Signature date</label>
+                <input
+                  id="clientDate"
+                  name="clientDate"
+                  type="date"
+                  value={signatureFields.clientDate}
+                  onChange={updateSignatureField}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <Link href="/" className="sign-back-link">
