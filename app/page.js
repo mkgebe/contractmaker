@@ -69,6 +69,11 @@ const templateStorageKey = 'contractmaker-templates-v1';
 const profileStorageKey = 'contractmaker-company-profile-v1';
 const contractsStorageKey = 'contractmaker-contracts-v1';
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
+const authStorageKey = 'contractmaker-auth-v1';
+const demoCredentials = {
+  email: 'admin@contractmaker.app',
+  password: 'ContractMaker2026',
+};
 
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
@@ -92,13 +97,27 @@ export default function HomePage() {
   const [selectedId, setSelectedId] = useState(starterContracts[0].id);
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   const selectedContract = contracts.find((contract) => contract.id === selectedId);
 
   useEffect(() => {
+    const savedAuthRaw = window.localStorage.getItem(authStorageKey);
     const savedTemplatesRaw = window.localStorage.getItem(templateStorageKey);
     const savedProfileRaw = window.localStorage.getItem(profileStorageKey);
     const savedContractsRaw = window.localStorage.getItem(contractsStorageKey);
+
+    if (savedAuthRaw) {
+      try {
+        const savedAuth = JSON.parse(savedAuthRaw);
+        setIsAuthenticated(Boolean(savedAuth?.isAuthenticated));
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
 
     if (savedTemplatesRaw) {
       try {
@@ -133,19 +152,30 @@ export default function HomePage() {
         // Ignore malformed storage data.
       }
     }
+
+    setAuthReady(true);
   }, []);
 
   useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      return;
+    }
     window.localStorage.setItem(templateStorageKey, JSON.stringify(templates));
-  }, [templates]);
+  }, [authReady, isAuthenticated, templates]);
 
   useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      return;
+    }
     window.localStorage.setItem(profileStorageKey, JSON.stringify(companyProfile));
-  }, [companyProfile]);
+  }, [authReady, companyProfile, isAuthenticated]);
 
   useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      return;
+    }
     window.localStorage.setItem(contractsStorageKey, JSON.stringify(contracts));
-  }, [contracts]);
+  }, [authReady, contracts, isAuthenticated]);
 
   const stats = useMemo(() => {
     const signedTotal = contracts
@@ -318,10 +348,108 @@ export default function HomePage() {
     setBanner(`${selectedContract.id} moved to ${nextStatus}.`);
   }
 
+  function updateLoginField(event) {
+    const { name, value } = event.target;
+    setLoginForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+    const email = loginForm.email.trim().toLowerCase();
+    const password = loginForm.password;
+
+    if (email === demoCredentials.email && password === demoCredentials.password) {
+      setIsAuthenticated(true);
+      setLoginError('');
+      setLoginForm({ email: '', password: '' });
+      window.localStorage.setItem(authStorageKey, JSON.stringify({ isAuthenticated: true }));
+      return;
+    }
+
+    setLoginError('Incorrect email or password. Try the demo credentials shown below.');
+  }
+
+  function logout() {
+    setIsAuthenticated(false);
+    setLoginError('');
+    setShareLink('');
+    window.localStorage.removeItem(authStorageKey);
+  }
+
+  if (!authReady) {
+    return (
+      <main className="auth-main">
+        <section className="card auth-card">
+          <h1>Loading Contractmaker…</h1>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="auth-main">
+        <section className="card auth-card">
+          <p className="eyebrow">Contractmaker Platform</p>
+          <h1>Login required</h1>
+          <p className="small">
+            Sign in before accessing the contract builder and dashboard.
+          </p>
+
+          <form onSubmit={handleLogin}>
+            <div className="field">
+              <label htmlFor="loginEmail">Email</label>
+              <input
+                id="loginEmail"
+                name="email"
+                type="email"
+                autoComplete="username"
+                value={loginForm.email}
+                onChange={updateLoginField}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="loginPassword">Password</label>
+              <input
+                id="loginPassword"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={loginForm.password}
+                onChange={updateLoginField}
+                required
+              />
+            </div>
+            <button className="primary full-width" type="submit">
+              Login
+            </button>
+          </form>
+
+          {loginError ? <p className="auth-error">{loginError}</p> : null}
+
+          <div className="notice auth-help">
+            <strong>Demo credentials</strong>
+            <p className="small compact">
+              Email: {demoCredentials.email}
+              <br />
+              Password: {demoCredentials.password}
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main>
       <header className="hero">
-        <p className="eyebrow">Contractmaker Platform</p>
+        <div className="hero-top">
+          <p className="eyebrow">Contractmaker Platform</p>
+          <button className="ghost" type="button" onClick={logout}>
+            Logout
+          </button>
+        </div>
         <h1>Design-forward contracts, generated in minutes.</h1>
         <p>
           Build complete legal-ready templates, save reusable versions, add your brand profile, and
