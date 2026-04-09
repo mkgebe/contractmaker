@@ -521,4 +521,8 @@ button.ghost {
   .button-row {
     flex-wrap: wrap;
   }
+
+  .invoice-link-button {
+    margin-left: 0;
+  }
 }

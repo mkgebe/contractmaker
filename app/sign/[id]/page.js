@@ -339,6 +339,72 @@ export default function SignPage() {
           </div>
         </div>
 
+        <section className="proposal-sign-card" aria-label="Accept proposal">
+          <p className="proposal-kicker">Ready to proceed?</p>
+          <h2>
+            <span>LET&apos;S</span> go
+          </h2>
+          <p className="proposal-copy">
+            Accept this proposal to kick things off. Your signature confirms the scope, timeline, and payment
+            terms.
+          </p>
+          <button type="button" className="accept-proposal-btn" onClick={openSignatureCanvas}>
+            Accept &amp; Sign Proposal
+          </button>
+        </section>
+
+        {showSignatureCanvas ? (
+          <section className="signature-canvas-card" ref={signatureSectionRef}>
+            <p className="proposal-kicker">Accept &amp; sign</p>
+            <h3>
+              <span>SIGN</span> below
+            </h3>
+            <p className="small compact signature-intro">
+              By signing, you agree to the scope, pricing, and payment terms outlined in this proposal.
+            </p>
+
+            <div className="field">
+              <label htmlFor="signerName">Your full name</label>
+              <input
+                id="signerName"
+                value={signerName}
+                onChange={(event) => setSignerName(event.target.value)}
+                placeholder={contract.form.clientName}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="signatureCanvas">Draw your signature</label>
+              <canvas
+                id="signatureCanvas"
+                ref={canvasRef}
+                className="signature-canvas"
+                onPointerDown={startDrawing}
+                onPointerMove={drawSignature}
+                onPointerUp={stopDrawing}
+                onPointerLeave={stopDrawing}
+              />
+            </div>
+
+            <div className="button-row signature-canvas-actions">
+              <button type="button" className="secondary" onClick={saveClientSignature}>
+                Accept &amp; Sign
+              </button>
+              <button type="button" className="ghost" onClick={clearSignature}>
+                Clear
+              </button>
+            </div>
+
+            {!signerName.trim() || !hasDrawn ? (
+              <p className="small">Enter your full name and draw your signature to complete signing.</p>
+            ) : null}
+
+            {signatureDate ? (
+              <p className="small">Signed by {signerName} on {new Date(signatureDate).toLocaleString()}.</p>
+            ) : null}
+          </section>
+        ) : null}
+
         <Link href="/" className="sign-back-link">
           Back to dashboard
         </Link>
