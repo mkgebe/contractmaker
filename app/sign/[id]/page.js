@@ -6,6 +6,64 @@ import { useEffect, useMemo, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
 
+const defaultSectionCatalog = [
+  { id: 'agreement', title: 'Agreement' },
+  { id: 'clientContact', title: 'Client contact' },
+  { id: 'scope', title: 'Scope' },
+  { id: 'deliverables', title: 'Deliverables' },
+  { id: 'timeline', title: 'Timeline' },
+  { id: 'compensation', title: 'Compensation' },
+  { id: 'lateFees', title: 'Late fees' },
+  { id: 'revisions', title: 'Revisions' },
+  { id: 'confidentiality', title: 'Confidentiality' },
+  { id: 'intellectualProperty', title: 'Intellectual property' },
+  { id: 'termination', title: 'Termination' },
+  { id: 'disputeResolution', title: 'Dispute resolution' },
+  { id: 'governingLaw', title: 'Governing law' },
+  { id: 'terms', title: 'Additional terms' },
+];
+
+const defaultSectionMap = Object.fromEntries(defaultSectionCatalog.map((section) => [section.id, section]));
+
+function getDefaultSectionOrder() {
+  return defaultSectionCatalog.map((section) => ({ id: section.id, type: 'default' }));
+}
+
+function getSectionBody(sectionId, form, companyProfile) {
+  switch (sectionId) {
+    case 'agreement':
+      return `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`;
+    case 'clientContact':
+      return `${form.clientEmail} | ${form.clientAddress}`;
+    case 'scope':
+      return form.scope;
+    case 'deliverables':
+      return form.deliverables;
+    case 'timeline':
+      return `${form.startDate} through ${form.endDate}`;
+    case 'compensation':
+      return `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`;
+    case 'lateFees':
+      return form.lateFee;
+    case 'revisions':
+      return form.revisionRounds;
+    case 'confidentiality':
+      return form.confidentiality;
+    case 'intellectualProperty':
+      return form.intellectualProperty;
+    case 'termination':
+      return form.termination;
+    case 'disputeResolution':
+      return form.disputeResolution;
+    case 'governingLaw':
+      return form.governingLaw;
+    case 'terms':
+      return form.terms;
+    default:
+      return '';
+  }
+}
+
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -63,64 +121,41 @@ export default function SignPage() {
       return [];
     }
 
-    return [
-      {
-        title: 'Agreement',
-        body: `${contract.form.agreementType} between ${contract.companyProfile.businessName} (Provider) and ${contract.form.clientName} (Client).`,
-      },
-      {
-        title: 'Client contact',
-        body: `${contract.form.clientEmail} | ${contract.form.clientAddress}`,
-      },
-      {
-        title: 'Scope',
-        body: contract.form.scope,
-      },
-      {
-        title: 'Deliverables',
-        body: contract.form.deliverables,
-      },
-      {
-        title: 'Timeline',
-        body: `${contract.form.startDate} through ${contract.form.endDate}`,
-      },
-      {
-        title: 'Compensation',
-        body: `${formatMoney(Number(contract.form.price || 0))}. Payment schedule: ${contract.form.paymentSchedule}`,
-      },
-      {
-        title: 'Late fees',
-        body: contract.form.lateFee,
-      },
-      {
-        title: 'Revisions',
-        body: contract.form.revisionRounds,
-      },
-      {
-        title: 'Confidentiality',
-        body: contract.form.confidentiality,
-      },
-      {
-        title: 'Intellectual property',
-        body: contract.form.intellectualProperty,
-      },
-      {
-        title: 'Termination',
-        body: contract.form.termination,
-      },
-      {
-        title: 'Dispute resolution',
-        body: contract.form.disputeResolution,
-      },
-      {
-        title: 'Governing law',
-        body: contract.form.governingLaw,
-      },
-      {
-        title: 'Additional terms',
-        body: contract.form.terms,
-      },
-    ];
+    const legacyCustomSections = Array.isArray(contract.form.customFields)
+      ? contract.form.customFields.map((field) => ({
+          id: field.id,
+          type: 'custom',
+          title: field.title || '',
+          body: field.body || '',
+        }))
+      : [];
+
+    const sections =
+      Array.isArray(contract.form.sectionOrder) && contract.form.sectionOrder.length > 0
+        ? contract.form.sectionOrder
+        : [...getDefaultSectionOrder(), ...legacyCustomSections];
+
+    return sections
+      .map((section) => {
+        if (section.type === 'default') {
+          const definition = defaultSectionMap[section.id];
+          if (!definition) {
+            return null;
+          }
+          return {
+            id: section.id,
+            title: definition.title,
+            body: getSectionBody(section.id, contract.form, contract.companyProfile).trim(),
+          };
+        }
+
+        return {
+          id: section.id,
+          title: (section.title || '').trim() || 'Custom field',
+          body: (section.body || '').trim(),
+        };
+      })
+      .filter((section) => section && section.body);
   }, [contract]);
 
   const updateSignatureField = (event) => {
@@ -222,7 +257,7 @@ export default function SignPage() {
             ) : null}
           </div>
           {previewSections.map((section) => (
-            <p key={section.title}>
+            <p key={section.id}>
               <span className="preview-title">{section.title}:</span> {section.body}
             </p>
           ))}
