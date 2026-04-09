@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
 
@@ -41,7 +41,13 @@ export default function SignPage() {
     providerDate: '',
     clientName: '',
     clientDate: '',
+    clientSignatureDataUrl: '',
   });
+  const [isSavingClientSignature, setIsSavingClientSignature] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [hasDrawnClientSignature, setHasDrawnClientSignature] = useState(false);
+  const [isDrawingClientSignature, setIsDrawingClientSignature] = useState(false);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     if (!id || typeof id !== 'string') {
@@ -192,6 +198,172 @@ export default function SignPage() {
     });
   };
 
+  useEffect(() => {
+    if (!canvasRef.current) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    context.scale(ratio, ratio);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = 2;
+    context.strokeStyle = '#111827';
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+
+    if (signatureFields.clientSignatureDataUrl) {
+      const image = new Image();
+      image.onload = () => {
+        context.drawImage(image, 0, 0, width, height);
+      };
+      image.src = signatureFields.clientSignatureDataUrl;
+    }
+  }, [signatureFields.clientSignatureDataUrl]);
+
+  const getCanvasCoordinates = (event) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return { x: 0, y: 0 };
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  };
+
+  const startDrawingClientSignature = (event) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const context = canvas.getContext('2d');
+    const { x, y } = getCanvasCoordinates(event);
+    context.beginPath();
+    context.moveTo(x, y);
+    setIsDrawingClientSignature(true);
+    setHasDrawnClientSignature(true);
+  };
+
+  const drawClientSignature = (event) => {
+    if (!isDrawingClientSignature || !canvasRef.current) {
+      return;
+    }
+
+    const context = canvasRef.current.getContext('2d');
+    const { x, y } = getCanvasCoordinates(event);
+    context.lineTo(x, y);
+    context.stroke();
+  };
+
+  const stopDrawingClientSignature = () => {
+    setIsDrawingClientSignature(false);
+  };
+
+  const clearClientSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    setHasDrawnClientSignature(false);
+    setSaveMessage('');
+    setSignatureFields((prev) => ({
+      ...prev,
+      clientSignatureDataUrl: '',
+    }));
+  };
+
+  const saveClientSignature = async () => {
+    if (!id || !canvasRef.current || !signatureFields.clientName.trim()) {
+      setSaveMessage('Add client name and draw signature before saving.');
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const clientSignatureDataUrl = canvas.toDataURL('image/png');
+    const payload = {
+      contractId: id,
+      clientName: signatureFields.clientName.trim(),
+      clientDate: signatureFields.clientDate || new Date().toISOString().slice(0, 10),
+      signatureImage: clientSignatureDataUrl,
+    };
+
+    setIsSavingClientSignature(true);
+    setSaveMessage('');
+
+    try {
+      const response = await fetch('/api/signatures', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      const nextFields = {
+        ...signatureFields,
+        clientDate: payload.clientDate,
+        clientSignatureDataUrl,
+      };
+      setSignatureFields(nextFields);
+      setSaveMessage('Client signature saved to backend.');
+
+      const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
+      if (savedSharedRaw) {
+        const sharedContracts = JSON.parse(savedSharedRaw);
+        if (sharedContracts[id]) {
+          sharedContracts[id] = {
+            ...sharedContracts[id],
+            signatureFields: nextFields,
+          };
+          window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
+        }
+      }
+    } catch {
+      setSaveMessage('Could not save signature to backend. Please try again.');
+    } finally {
+      setIsSavingClientSignature(false);
+    }
+  };
+
+  const downloadClientSignature = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const signatureSource =
+      signatureFields.clientSignatureDataUrl || (hasDrawnClientSignature && canvasRef.current?.toDataURL('image/png'));
+    if (!signatureSource) {
+      setSaveMessage('Draw and save a signature first, then download.');
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = signatureSource;
+    link.download = `${id || 'contract'}-client-signature.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const downloadPdf = () => {
     if (typeof window === 'undefined') {
       return;
@@ -201,12 +373,14 @@ export default function SignPage() {
   };
 
   const hasProviderSignature = Boolean(signatureFields.providerName && signatureFields.providerDate);
-  const hasClientSignature = Boolean(signatureFields.clientName && signatureFields.clientDate);
+  const hasClientSignature = Boolean(
+    signatureFields.clientName && signatureFields.clientDate && signatureFields.clientSignatureDataUrl,
+  );
 
   if (loading) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <p>Loading contract…</p>
         </section>
       </main>
@@ -216,7 +390,7 @@ export default function SignPage() {
   if (!contract) {
     return (
       <main>
-        <section className="card sign-wrapper">
+        <section className="card sign-wrapper proposal-shell">
           <h1>Contract not found</h1>
           <p className="small">
             This share link is invalid, expired, or was created on a different browser/device.
@@ -231,7 +405,7 @@ export default function SignPage() {
 
   return (
     <main>
-      <section className="card sign-wrapper">
+      <section className="card sign-wrapper proposal-shell">
         <p className="kicker">Review & sign</p>
         <h1>{contract.form.templateName}</h1>
         <p className="small">
@@ -262,7 +436,7 @@ export default function SignPage() {
             ) : null}
           </div>
           {previewSections.map((section) => (
-            <p key={section.title}>
+            <p key={section.id}>
               <span className="preview-title">{section.title}:</span> {section.body}
             </p>
           ))}
@@ -338,6 +512,37 @@ export default function SignPage() {
             </div>
           </div>
         </div>
+
+        <section className="client-signature-panel" aria-label="Client signature draw area">
+          <h3>Client digital signature</h3>
+          <p className="small compact">
+            Client types their name, draws signature below, then saves it to backend.
+          </p>
+          <div className="field">
+            <label htmlFor="clientSignatureCanvas">Draw signature</label>
+            <canvas
+              id="clientSignatureCanvas"
+              ref={canvasRef}
+              className="signature-canvas"
+              onPointerDown={startDrawingClientSignature}
+              onPointerMove={drawClientSignature}
+              onPointerUp={stopDrawingClientSignature}
+              onPointerLeave={stopDrawingClientSignature}
+            />
+          </div>
+          <div className="button-row signature-canvas-actions">
+            <button type="button" className="secondary" onClick={saveClientSignature} disabled={isSavingClientSignature}>
+              {isSavingClientSignature ? 'Saving…' : 'Save to backend'}
+            </button>
+            <button type="button" className="ghost" onClick={clearClientSignature}>
+              Clear
+            </button>
+            <button type="button" className="primary" onClick={downloadClientSignature}>
+              Download signature
+            </button>
+          </div>
+          {saveMessage ? <p className="small">{saveMessage}</p> : null}
+        </section>
 
         <Link href="/" className="sign-back-link">
           Back to dashboard

@@ -81,15 +81,30 @@ const demoCredentials = {
   password: 'ContractMaker2026',
 };
 
-function encodeSharePayload(data) {
-  if (typeof window === 'undefined') {
-    return '';
-  }
+function normalizeTemplate(template = {}) {
+  const customFields = Array.isArray(template.customFields)
+    ? template.customFields.map((field) => ({
+        id: field.id || `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: field.title || '',
+        body: field.body || '',
+      }))
+    : [];
 
+  return {
+    ...defaultTemplate,
+    ...template,
+    customFields,
+  };
+}
+
+function encodeSharePayload(payload) {
   try {
-    const json = JSON.stringify(data);
+    const json = JSON.stringify(payload);
     const bytes = new TextEncoder().encode(json);
-    const binary = String.fromCharCode(...bytes);
+    let binary = '';
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
     return btoa(binary);
   } catch {
     return '';
@@ -97,11 +112,11 @@ function encodeSharePayload(data) {
 }
 
 function getShareBaseUrl() {
-  if (typeof window === 'undefined') {
-    return '';
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
   }
 
-  return window.location.origin;
+  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 }
 
 function createCustomField() {
@@ -125,9 +140,11 @@ function StatusPill({ value }) {
 }
 
 export default function HomePage() {
-  const [form, setForm] = useState(defaultTemplate);
+  const [form, setForm] = useState(normalizeTemplate(defaultTemplate));
   const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
-  const [templates, setTemplates] = useState([{ id: 'default-template', ...defaultTemplate }]);
+  const [templates, setTemplates] = useState([
+    { id: 'default-template', ...normalizeTemplate(defaultTemplate) },
+  ]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('default-template');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [contracts, setContracts] = useState(starterContracts);
@@ -359,11 +376,12 @@ export default function HomePage() {
   function saveTemplate() {
     const nextName = newTemplateName.trim() || form.templateName.trim() || 'Untitled Template';
     const templateId = `tpl-${Date.now()}`;
-    const newTemplate = {
+    const newTemplate = normalizeTemplate({
       ...form,
       id: templateId,
       templateName: nextName,
-    };
+      customFields: Array.isArray(form.customFields) ? form.customFields : [],
+    });
 
     setTemplates((prev) => [newTemplate, ...prev]);
     setSelectedTemplateId(templateId);
@@ -1035,7 +1053,7 @@ export default function HomePage() {
               ) : null}
             </div>
             {previewSections.map((section) => (
-              <p key={section.title}>
+              <p key={section.id}>
                 <span className="preview-title">{section.title}:</span> {section.body}
               </p>
             ))}
