@@ -93,7 +93,7 @@ export default function HomePage() {
 
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const nextLink = `https://contracts.harbor.app/sign/${slug}-${Date.now().toString().slice(-6)}`;
+    const nextLink = `https://contractmaker-xi.vercel.app/sign/${slug}-${Date.now().toString().slice(-6)}`;
     setShareLink(nextLink);
     setBanner('Secure share link generated. Ready to send.');
   }
