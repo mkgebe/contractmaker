@@ -176,6 +176,31 @@ textarea {
   margin-top: 0.65rem;
 }
 
+.custom-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.custom-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.custom-field-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #fff;
+}
+
+.remove-field-button {
+  margin-top: 0.2rem;
+}
+
 button {
   border: none;
   border-radius: 10px;

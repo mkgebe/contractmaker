@@ -52,6 +52,7 @@ const defaultTemplate = {
   governingLaw: 'State of New York',
   disputeResolution: 'Good-faith mediation followed by binding arbitration if unresolved.',
   terms: 'Client agrees to communication response times within 2 business days to avoid delivery delays.',
+  customFields: [],
 };
 
 const defaultCompanyProfile = {
@@ -80,31 +81,12 @@ const demoCredentials = {
   password: 'ContractMaker2026',
 };
 
-function getShareBaseUrl() {
-  const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  if (configuredBaseUrl) {
-    return configuredBaseUrl.replace(/\/$/, '');
-  }
-
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-
-  return '';
-}
-
-function encodeSharePayload(data) {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  const json = JSON.stringify(data);
-  const bytes = new TextEncoder().encode(json);
-  let binary = '';
-  bytes.forEach((value) => {
-    binary += String.fromCharCode(value);
-  });
-  return btoa(binary);
+function createCustomField() {
+  return {
+    id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: '',
+    body: '',
+  };
 }
 
 function formatMoney(amount) {
@@ -164,9 +146,13 @@ export default function HomePage() {
       try {
         const savedTemplates = JSON.parse(savedTemplatesRaw);
         if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
-          setTemplates(savedTemplates);
-          setSelectedTemplateId(savedTemplates[0].id);
-          setForm(savedTemplates[0]);
+          const normalizedTemplates = savedTemplates.map((template) => ({
+            ...template,
+            customFields: Array.isArray(template.customFields) ? template.customFields : [],
+          }));
+          setTemplates(normalizedTemplates);
+          setSelectedTemplateId(normalizedTemplates[0].id);
+          setForm(normalizedTemplates[0]);
         }
       } catch {
         // Ignore malformed storage data.
@@ -307,6 +293,14 @@ export default function HomePage() {
         title: 'Additional terms',
         body: form.terms,
       },
+      ...(Array.isArray(form.customFields)
+        ? form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
     ],
     [form, companyProfile.businessName],
   );
@@ -364,8 +358,36 @@ export default function HomePage() {
       return;
     }
 
-    setForm(template);
+    setForm({
+      ...template,
+      customFields: Array.isArray(template.customFields) ? template.customFields : [],
+    });
     setBanner(`Template "${template.templateName}" applied.`);
+  }
+
+  function addCustomField() {
+    setForm((prev) => ({
+      ...prev,
+      customFields: [...(Array.isArray(prev.customFields) ? prev.customFields : []), createCustomField()],
+    }));
+  }
+
+  function updateCustomField(fieldId, key, value) {
+    setForm((prev) => ({
+      ...prev,
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).map((field) =>
+        field.id === fieldId ? { ...field, [key]: value } : field,
+      ),
+    }));
+  }
+
+  function removeCustomField(fieldId) {
+    setForm((prev) => ({
+      ...prev,
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).filter(
+        (field) => field.id !== fieldId,
+      ),
+    }));
   }
 
   function generateShareLink() {
@@ -839,6 +861,51 @@ export default function HomePage() {
               <label htmlFor="terms">Additional terms</label>
               <input id="terms" name="terms" value={form.terms} onChange={updateField} />
             </div>
+          </div>
+
+          <div className="field">
+            <div className="custom-fields-head">
+              <label>Additional custom fields</label>
+              <button className="ghost" type="button" onClick={addCustomField}>
+                Add field
+              </button>
+            </div>
+            {Array.isArray(form.customFields) && form.customFields.length > 0 ? (
+              <div className="custom-fields-list">
+                {form.customFields.map((field, index) => (
+                  <div key={field.id} className="custom-field-card">
+                    <div className="field">
+                      <label htmlFor={`customTitle-${field.id}`}>Field title #{index + 1}</label>
+                      <input
+                        id={`customTitle-${field.id}`}
+                        value={field.title}
+                        onChange={(event) => updateCustomField(field.id, 'title', event.target.value)}
+                        placeholder="e.g. Non-solicitation"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`customBody-${field.id}`}>Field details</label>
+                      <textarea
+                        id={`customBody-${field.id}`}
+                        rows="2"
+                        value={field.body}
+                        onChange={(event) => updateCustomField(field.id, 'body', event.target.value)}
+                        placeholder="Describe this contract clause."
+                      />
+                    </div>
+                    <button
+                      className="ghost remove-field-button"
+                      type="button"
+                      onClick={() => removeCustomField(field.id)}
+                    >
+                      Remove field
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="small">No custom fields yet. Add one to include extra clauses in this contract.</p>
+            )}
           </div>
 
           <div className="button-row">
