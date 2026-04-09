@@ -59,6 +59,7 @@ const defaultCompanyProfile = {
   companyEmail: 'contracts@harborcreative.com',
   companyPhone: '(212) 555-0145',
   companyAddress: '21 Mercer Street, New York, NY 10013',
+  companyWebsite: 'www.harborcreative.com',
   logoDataUrl: '',
 };
 
@@ -223,20 +224,62 @@ export default function HomePage() {
 
   const previewSections = useMemo(
     () => [
-      `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
-      `Client contact: ${form.clientEmail} | ${form.clientAddress}`,
-      `Scope: ${form.scope}`,
-      `Deliverables: ${form.deliverables}`,
-      `Timeline: ${form.startDate} through ${form.endDate}`,
-      `Compensation: ${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
-      `Late fees: ${form.lateFee}`,
-      `Revisions: ${form.revisionRounds}`,
-      `Confidentiality: ${form.confidentiality}`,
-      `Intellectual property: ${form.intellectualProperty}`,
-      `Termination: ${form.termination}`,
-      `Dispute resolution: ${form.disputeResolution}`,
-      `Governing law: ${form.governingLaw}`,
-      `Additional terms: ${form.terms}`,
+      {
+        title: 'Agreement',
+        body: `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${form.clientEmail} | ${form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${form.startDate} through ${form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: form.terms,
+      },
     ],
     [form, companyProfile.businessName],
   );
@@ -820,31 +863,49 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="companyAddress">Company address</label>
-            <input
-              id="companyAddress"
-              name="companyAddress"
-              value={companyProfile.companyAddress}
-              onChange={updateCompanyField}
-            />
+          <div className="field two-col">
+            <div>
+              <label htmlFor="companyAddress">Company address</label>
+              <input
+                id="companyAddress"
+                name="companyAddress"
+                value={companyProfile.companyAddress}
+                onChange={updateCompanyField}
+              />
+            </div>
+            <div>
+              <label htmlFor="companyWebsite">Company website</label>
+              <input
+                id="companyWebsite"
+                name="companyWebsite"
+                value={companyProfile.companyWebsite}
+                onChange={updateCompanyField}
+                placeholder="www.yourcompany.com"
+              />
+            </div>
           </div>
 
           <div className="preview">
             <p className="kicker">Live Contract Preview</p>
-            {companyProfile.logoDataUrl ? (
-              <img src={companyProfile.logoDataUrl} alt="Company logo" className="logo-preview" />
-            ) : null}
-            <h3>
-              {companyProfile.businessName} × {form.clientName}
-            </h3>
-            <p className="small compact">
-              {companyProfile.companyEmail} · {companyProfile.companyPhone}
-              <br />
-              {companyProfile.companyAddress}
-            </p>
+            <div className="preview-head">
+              <div>
+                <h3>
+                  {companyProfile.businessName} × {form.clientName}
+                </h3>
+                <p className="small compact">
+                  {companyProfile.companyEmail} · {companyProfile.companyPhone}
+                  <br />
+                  {companyProfile.companyAddress}
+                </p>
+              </div>
+              {companyProfile.logoDataUrl ? (
+                <img src={companyProfile.logoDataUrl} alt="Company logo" className="logo-preview right" />
+              ) : null}
+            </div>
             {previewSections.map((section) => (
-              <p key={section}>{section}</p>
+              <p key={section.title}>
+                <span className="preview-title">{section.title}:</span> {section.body}
+              </p>
             ))}
             <div className="signature-area">
               <p className="kicker">Online Signature Area</p>
@@ -901,6 +962,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+            <p className="contract-footer">{companyProfile.companyWebsite}</p>
           </div>
 
           <div className="notice" role="status">

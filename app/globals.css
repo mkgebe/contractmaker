@@ -111,6 +111,7 @@ main {
 .card h2 {
   margin: 0;
   font-size: 1.1rem;
+  font-weight: 800;
 }
 
 .field {
@@ -139,6 +140,7 @@ label {
   display: block;
   font-size: 0.86rem;
   color: var(--muted);
+  font-weight: 700;
 }
 
 input,
@@ -216,6 +218,19 @@ button.ghost {
 
 .preview h3 {
   margin-top: 0;
+  font-weight: 800;
+}
+
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 0.55rem;
+}
+
+.preview-title {
+  font-weight: 800;
 }
 
 .signature-area {
@@ -249,6 +264,20 @@ button.ghost {
   width: auto;
   object-fit: contain;
   margin-bottom: 0.6rem;
+}
+
+.logo-preview.right {
+  margin-bottom: 0;
+  margin-left: auto;
+}
+
+.contract-footer {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-weight: 700;
+  color: #374151;
 }
 
 .notice {
@@ -453,6 +482,10 @@ button.ghost {
 
   .signature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .preview-head {
+    flex-direction: column;
   }
 
   .table {
