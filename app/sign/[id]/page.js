@@ -19,6 +19,12 @@ export default function SignPage() {
   const id = params?.id;
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [signatureFields, setSignatureFields] = useState({
+    providerName: '',
+    providerDate: '',
+    clientName: '',
+    clientDate: '',
+  });
 
   useEffect(() => {
     if (!id || typeof id !== 'string') {
@@ -36,7 +42,15 @@ export default function SignPage() {
 
     try {
       const sharedContracts = JSON.parse(savedSharedRaw);
-      setContract(sharedContracts[id] || null);
+      const activeContract = sharedContracts[id] || null;
+      setContract(activeContract);
+
+      if (activeContract?.signatureFields) {
+        setSignatureFields((prev) => ({
+          ...prev,
+          ...activeContract.signatureFields,
+        }));
+      }
     } catch {
       setContract(null);
     }
@@ -109,6 +123,46 @@ export default function SignPage() {
     ];
   }, [contract]);
 
+  const updateSignatureField = (event) => {
+    const { name, value } = event.target;
+
+    setSignatureFields((prev) => {
+      const next = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (id && typeof window !== 'undefined') {
+        const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
+
+        if (savedSharedRaw) {
+          try {
+            const sharedContracts = JSON.parse(savedSharedRaw);
+            if (sharedContracts[id]) {
+              sharedContracts[id] = {
+                ...sharedContracts[id],
+                signatureFields: next,
+              };
+              window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
+            }
+          } catch {
+            // No-op: keep signature data in-memory if parsing fails.
+          }
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const downloadPdf = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.print();
+  };
+
   if (loading) {
     return (
       <main>
@@ -145,6 +199,12 @@ export default function SignPage() {
           Created {new Date(contract.createdAt).toLocaleString()}
         </p>
 
+        <div className="button-row sign-actions">
+          <button type="button" className="primary" onClick={downloadPdf}>
+            Download PDF
+          </button>
+        </div>
+
         <div className="preview sign-preview">
           <div className="preview-head">
             <div>
@@ -172,6 +232,10 @@ export default function SignPage() {
 
         <Link href="/" className="sign-back-link">
           Back to dashboard
+        </Link>
+
+        <Link href="/invoice" className="invoice-link-button">
+          Go to Invoice
         </Link>
       </section>
     </main>
