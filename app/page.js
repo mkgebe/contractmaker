@@ -6,6 +6,7 @@ const starterContracts = [
   {
     id: 'CM-2401',
     client: 'Bright Lane Studio',
+    clientEmail: 'accounts@brightlane.studio',
     amount: 2800,
     status: 'Draft',
     dueDate: '2026-04-30',
@@ -13,6 +14,7 @@ const starterContracts = [
   {
     id: 'CM-2402',
     client: 'Parker & Co.',
+    clientEmail: 'legal@parkerco.com',
     amount: 1200,
     status: 'Sent',
     dueDate: '2026-04-18',
@@ -20,6 +22,7 @@ const starterContracts = [
   {
     id: 'CM-2403',
     client: 'Northview Agency',
+    clientEmail: 'approvals@northviewagency.com',
     amount: 4500,
     status: 'Signed',
     dueDate: '2026-04-26',
@@ -69,6 +72,7 @@ const templateStorageKey = 'contractmaker-templates-v1';
 const profileStorageKey = 'contractmaker-company-profile-v1';
 const contractsStorageKey = 'contractmaker-contracts-v1';
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
+const signedContractsStorageKey = 'contractmaker-signed-contracts-v1';
 const authStorageKey = 'contractmaker-auth-v1';
 const demoCredentials = {
   email: 'admin@contractmaker.app',
@@ -94,7 +98,9 @@ export default function HomePage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('default-template');
   const [newTemplateName, setNewTemplateName] = useState('');
   const [contracts, setContracts] = useState(starterContracts);
+  const [signedContracts, setSignedContracts] = useState([]);
   const [selectedId, setSelectedId] = useState(starterContracts[0].id);
+  const [activeTab, setActiveTab] = useState('contracts');
   const [banner, setBanner] = useState('Ready to craft your next contract.');
   const [shareLink, setShareLink] = useState('');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
@@ -115,6 +121,7 @@ export default function HomePage() {
     const savedTemplatesRaw = window.localStorage.getItem(templateStorageKey);
     const savedProfileRaw = window.localStorage.getItem(profileStorageKey);
     const savedContractsRaw = window.localStorage.getItem(contractsStorageKey);
+    const savedSignedContractsRaw = window.localStorage.getItem(signedContractsStorageKey);
 
     if (savedAuthRaw) {
       try {
@@ -159,6 +166,17 @@ export default function HomePage() {
       }
     }
 
+    if (savedSignedContractsRaw) {
+      try {
+        const signedArchive = JSON.parse(savedSignedContractsRaw);
+        if (Array.isArray(signedArchive)) {
+          setSignedContracts(signedArchive);
+        }
+      } catch {
+        // Ignore malformed storage data.
+      }
+    }
+
     setAuthReady(true);
   }, []);
 
@@ -182,6 +200,13 @@ export default function HomePage() {
     }
     window.localStorage.setItem(contractsStorageKey, JSON.stringify(contracts));
   }, [authReady, contracts, isAuthenticated]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      return;
+    }
+    window.localStorage.setItem(signedContractsStorageKey, JSON.stringify(signedContracts));
+  }, [authReady, isAuthenticated, signedContracts]);
 
   const stats = useMemo(() => {
     const signedTotal = contracts
@@ -309,6 +334,7 @@ export default function HomePage() {
     const nextContract = {
       id: nextId,
       client: form.clientName,
+      clientEmail: form.clientEmail,
       amount: Number(form.price || 0),
       status: 'Draft',
       dueDate: form.endDate,
@@ -352,6 +378,62 @@ export default function HomePage() {
     );
 
     setBanner(`${selectedContract.id} moved to ${nextStatus}.`);
+  }
+
+  function saveSignedContracts() {
+    const completedContracts = contracts.filter((contract) => contract.status === 'Signed');
+    if (completedContracts.length === 0) {
+      setBanner('No signed contracts yet. Move one to Signed first.');
+      return;
+    }
+
+    const archiveById = new Map(signedContracts.map((contract) => [contract.id, contract]));
+    completedContracts.forEach((contract) => {
+      if (!archiveById.has(contract.id)) {
+        archiveById.set(contract.id, { ...contract, archivedAt: new Date().toISOString() });
+      }
+    });
+
+    const nextArchive = Array.from(archiveById.values()).sort((a, b) => a.id.localeCompare(b.id));
+    setSignedContracts(nextArchive);
+    setActiveTab('signed');
+    setBanner(`${completedContracts.length} signed contract(s) saved in your archive.`);
+  }
+
+  function sendSignedContractEmail(contract) {
+    if (!contract.clientEmail) {
+      setBanner(`No signer email found for ${contract.client}.`);
+      return;
+    }
+
+    const subject = encodeURIComponent(`Signed contract ${contract.id} from ${companyProfile.businessName}`);
+    const body = encodeURIComponent(
+      `Hi ${contract.client},\n\nAttached is the signed contract ${contract.id} totaling ${formatMoney(contract.amount)}.\n\nThanks,\n${companyProfile.businessName}\n${companyProfile.companyEmail}`,
+    );
+    window.location.href = `mailto:${contract.clientEmail}?subject=${subject}&body=${body}`;
+    setBanner(`Prepared email draft for ${contract.client}.`);
+  }
+
+  function sendAllSignedContracts() {
+    if (signedContracts.length === 0) {
+      setBanner('No archived signed contracts to email yet.');
+      return;
+    }
+
+    const recipients = signedContracts.map((contract) => contract.clientEmail).filter(Boolean);
+    if (recipients.length === 0) {
+      setBanner('No signer email addresses are available for archived contracts.');
+      return;
+    }
+
+    const subject = encodeURIComponent(`Signed contracts from ${companyProfile.businessName}`);
+    const body = encodeURIComponent(
+      `Hello,\n\nSharing signed contracts from our records:\n${signedContracts
+        .map((contract) => `• ${contract.id} — ${contract.client} — ${formatMoney(contract.amount)}`)
+        .join('\n')}\n\nBest,\n${companyProfile.businessName}\n${companyProfile.companyEmail}`,
+    );
+    window.location.href = `mailto:${recipients.join(',')}?subject=${subject}&body=${body}`;
+    setBanner(`Prepared a bulk email draft for ${recipients.length} signer(s).`);
   }
 
   function updateLoginField(event) {
@@ -835,50 +917,174 @@ export default function HomePage() {
       </section>
 
       <section className="card dashboard" aria-label="Contracts dashboard">
-        <div className="dashboard-head">
-          <div>
-            <h2>Contracts Dashboard</h2>
-            <p className="small">Move selected contracts from Draft → Sent → Signed in one click.</p>
-          </div>
-          <button className="primary" type="button" onClick={progressStatus}>
-            Advance selected status
+        <div className="dashboard-tabs" role="tablist" aria-label="Dashboard tabs">
+          <button
+            className={`tab-button ${activeTab === 'contracts' ? 'active' : ''}`}
+            type="button"
+            onClick={() => setActiveTab('contracts')}
+            role="tab"
+            aria-selected={activeTab === 'contracts'}
+          >
+            Contracts
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`}
+            type="button"
+            onClick={() => setActiveTab('templates')}
+            role="tab"
+            aria-selected={activeTab === 'templates'}
+          >
+            Saved templates
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'signed' ? 'active' : ''}`}
+            type="button"
+            onClick={() => setActiveTab('signed')}
+            role="tab"
+            aria-selected={activeTab === 'signed'}
+          >
+            Signed contracts
           </button>
         </div>
 
-        <table className="table">
-          <thead>
-            <tr>
-              <th aria-label="Select contract" />
-              <th>Contract ID</th>
-              <th>Client</th>
-              <th>Amount</th>
-              <th>Due date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contracts.map((contract) => (
-              <tr key={contract.id} className={selectedId === contract.id ? 'active-row' : ''}>
-                <td>
-                  <input
-                    type="radio"
-                    name="selectedContract"
-                    checked={selectedId === contract.id}
-                    onChange={() => setSelectedId(contract.id)}
-                    aria-label={`Select ${contract.id}`}
-                  />
-                </td>
-                <td>{contract.id}</td>
-                <td>{contract.client}</td>
-                <td>{formatMoney(contract.amount)}</td>
-                <td>{contract.dueDate}</td>
-                <td>
-                  <StatusPill value={contract.status} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {activeTab === 'contracts' ? (
+          <>
+            <div className="dashboard-head">
+              <div>
+                <h2>Contracts Dashboard</h2>
+                <p className="small">Move selected contracts from Draft → Sent → Signed in one click.</p>
+              </div>
+              <button className="primary" type="button" onClick={progressStatus}>
+                Advance selected status
+              </button>
+            </div>
+
+            <table className="table">
+              <thead>
+                <tr>
+                  <th aria-label="Select contract" />
+                  <th>Contract ID</th>
+                  <th>Client</th>
+                  <th>Amount</th>
+                  <th>Due date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contracts.map((contract) => (
+                  <tr key={contract.id} className={selectedId === contract.id ? 'active-row' : ''}>
+                    <td>
+                      <input
+                        type="radio"
+                        name="selectedContract"
+                        checked={selectedId === contract.id}
+                        onChange={() => setSelectedId(contract.id)}
+                        aria-label={`Select ${contract.id}`}
+                      />
+                    </td>
+                    <td>{contract.id}</td>
+                    <td>{contract.client}</td>
+                    <td>{formatMoney(contract.amount)}</td>
+                    <td>{contract.dueDate}</td>
+                    <td>
+                      <StatusPill value={contract.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : null}
+
+        {activeTab === 'templates' ? (
+          <div className="tab-panel">
+            <div className="dashboard-head">
+              <div>
+                <h2>Saved templates</h2>
+                <p className="small">Quickly reuse previously saved contract templates.</p>
+              </div>
+            </div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Template name</th>
+                  <th>Agreement type</th>
+                  <th>Client</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {templates.map((template) => (
+                  <tr key={template.id}>
+                    <td>{template.templateName}</td>
+                    <td>{template.agreementType}</td>
+                    <td>{template.clientName}</td>
+                    <td>{formatMoney(Number(template.price || 0))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {activeTab === 'signed' ? (
+          <div className="tab-panel">
+            <div className="dashboard-head">
+              <div>
+                <h2>Signed contracts archive</h2>
+                <p className="small">
+                  Save all signed contracts and prepare emails to contract signers in one place.
+                </p>
+              </div>
+              <div className="button-row compact">
+                <button className="secondary" type="button" onClick={saveSignedContracts}>
+                  Save all signed contracts
+                </button>
+                <button className="primary" type="button" onClick={sendAllSignedContracts}>
+                  Email all signers
+                </button>
+              </div>
+            </div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Contract ID</th>
+                  <th>Signer</th>
+                  <th>Email</th>
+                  <th>Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {signedContracts.length ? (
+                  signedContracts.map((contract) => (
+                    <tr key={contract.id}>
+                      <td>{contract.id}</td>
+                      <td>{contract.client}</td>
+                      <td>{contract.clientEmail || '—'}</td>
+                      <td>{formatMoney(contract.amount)}</td>
+                      <td>
+                        <button
+                          className="ghost"
+                          type="button"
+                          onClick={() => sendSignedContractEmail(contract)}
+                        >
+                          Send email
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="small">
+                      No archived signed contracts yet. Save signed contracts to populate this tab.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
     </main>
   );
