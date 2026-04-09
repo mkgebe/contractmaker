@@ -59,6 +59,7 @@ export default function HomePage() {
   const [typedSignature, setTypedSignature] = useState('');
   const [consent, setConsent] = useState(false);
   const [ipAddress, setIpAddress] = useState('203.0.113.10 (demo)');
+  const [isDark, setIsDark] = useState(false);
 
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
@@ -80,10 +81,14 @@ export default function HomePage() {
     context.lineWidth = 2;
     context.lineJoin = 'round';
     context.lineCap = 'round';
-    context.strokeStyle = '#111827';
-    context.fillStyle = '#ffffff';
+    const styles = getComputedStyle(document.documentElement);
+    context.strokeStyle = styles.getPropertyValue('--foreground').trim() || '#111827';
+    context.fillStyle = styles.getPropertyValue('--card').trim() || '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-  }, []);
+  }, [isDark]);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -147,7 +152,8 @@ export default function HomePage() {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#ffffff';
+    const styles = getComputedStyle(document.documentElement);
+    context.fillStyle = styles.getPropertyValue('--card').trim() || '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -184,9 +190,10 @@ export default function HomePage() {
     canvas.width = 440;
     canvas.height = 120;
     const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
+    const styles = getComputedStyle(document.documentElement);
+    context.fillStyle = styles.getPropertyValue('--card').trim() || '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#111827';
+    context.fillStyle = styles.getPropertyValue('--foreground').trim() || '#111827';
     context.font = '48px cursive';
     context.fillText(value, 20, 75);
     return canvas.toDataURL('image/png');
@@ -237,7 +244,12 @@ export default function HomePage() {
   return (
     <main>
       <header className="hero">
-        <h1>Service Contract & Signature Builder</h1>
+        <div className="hero-row">
+          <h1>Service Contract & Signature Builder</h1>
+          <button className="secondary" type="button" onClick={() => setIsDark((prev) => !prev)}>
+            {isDark ? 'Switch to Light' : 'Switch to Dark'}
+          </button>
+        </div>
         <p>
           Expanded MVP through Phase 2 and Phase 3: build contracts, generate signing links,
           capture signatures, and track audit + delivery status.
