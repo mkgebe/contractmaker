@@ -1,10 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 const sharedContractsStorageKey = 'contractmaker-shared-contracts-v1';
+
+function decodeSharePayload(payload) {
+  if (!payload || typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function formatMoney(amount) {
   return new Intl.NumberFormat('en-US', {
@@ -16,6 +32,7 @@ function formatMoney(amount) {
 
 export default function SignPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id;
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +50,18 @@ export default function SignPage() {
       return;
     }
 
+    const sharedPayload = searchParams.get('data');
+    const decodedContract = decodeSharePayload(sharedPayload);
+    if (decodedContract?.id === id) {
+      setContract(decodedContract);
+      if (decodedContract.signatureFields) {
+        setSignatureFields((prev) => ({
+          ...prev,
+          ...decodedContract.signatureFields,
+        }));
+      }
+    }
+
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
 
     if (!savedSharedRaw) {
@@ -42,7 +71,7 @@ export default function SignPage() {
 
     try {
       const sharedContracts = JSON.parse(savedSharedRaw);
-      const activeContract = sharedContracts[id] || null;
+      const activeContract = sharedContracts[id] || decodedContract || null;
       setContract(activeContract);
 
       if (activeContract?.signatureFields) {
@@ -56,7 +85,7 @@ export default function SignPage() {
     }
 
     setLoading(false);
-  }, [id]);
+  }, [id, searchParams]);
 
   const previewSections = useMemo(() => {
     if (!contract) {

@@ -393,7 +393,16 @@ export default function HomePage() {
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const signId = `${slug}-${Date.now().toString().slice(-6)}`;
-    const nextLink = `${window.location.origin}/sign/${signId}`;
+    const shareData = {
+      id: signId,
+      contractId: null,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+    const nextLink = `${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -406,14 +415,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: null,
-      form,
-      companyProfile,
-      signatureFields,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setShareLink(nextLink);
@@ -433,9 +435,19 @@ export default function HomePage() {
       dueDate: form.endDate,
     };
 
+    const shareData = {
+      id: signId,
+      contractId: nextId,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
-    setShareLink(`${window.location.origin}/sign/${signId}`);
+    setShareLink(`${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`);
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -448,14 +460,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: nextId,
-      form,
-      companyProfile,
-      signatureFields,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setBanner(`New contract ${nextId} created for ${form.clientName}.`);
