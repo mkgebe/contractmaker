@@ -120,6 +120,14 @@ export default function SignPage() {
         title: 'Additional terms',
         body: contract.form.terms,
       },
+      ...(Array.isArray(contract.form.customFields)
+        ? contract.form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
     ];
   }, [contract]);
 
