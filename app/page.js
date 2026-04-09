@@ -53,7 +53,6 @@ const defaultTemplate = {
   disputeResolution: 'Good-faith mediation followed by binding arbitration if unresolved.',
   terms: 'Client agrees to communication response times within 2 business days to avoid delivery delays.',
   customFields: [],
-  sectionOrder: [],
 };
 
 const defaultCompanyProfile = {
@@ -84,115 +83,9 @@ const demoCredentials = {
 
 function createCustomField() {
   return {
-    id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    type: 'custom',
+    id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: '',
     body: '',
-  };
-}
-
-const defaultSectionCatalog = [
-  { id: 'agreement', title: 'Agreement' },
-  { id: 'clientContact', title: 'Client contact' },
-  { id: 'scope', title: 'Scope' },
-  { id: 'deliverables', title: 'Deliverables' },
-  { id: 'timeline', title: 'Timeline' },
-  { id: 'compensation', title: 'Compensation' },
-  { id: 'lateFees', title: 'Late fees' },
-  { id: 'revisions', title: 'Revisions' },
-  { id: 'confidentiality', title: 'Confidentiality' },
-  { id: 'intellectualProperty', title: 'Intellectual property' },
-  { id: 'termination', title: 'Termination' },
-  { id: 'disputeResolution', title: 'Dispute resolution' },
-  { id: 'governingLaw', title: 'Governing law' },
-  { id: 'terms', title: 'Additional terms' },
-];
-
-const defaultSectionMap = Object.fromEntries(defaultSectionCatalog.map((section) => [section.id, section]));
-
-function getDefaultSectionOrder() {
-  return defaultSectionCatalog.map((section) => ({ id: section.id, type: 'default' }));
-}
-
-function getSectionBody(sectionId, form, companyProfile) {
-  switch (sectionId) {
-    case 'agreement':
-      return `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`;
-    case 'clientContact':
-      return `${form.clientEmail} | ${form.clientAddress}`;
-    case 'scope':
-      return form.scope;
-    case 'deliverables':
-      return form.deliverables;
-    case 'timeline':
-      return `${form.startDate} through ${form.endDate}`;
-    case 'compensation':
-      return `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`;
-    case 'lateFees':
-      return form.lateFee;
-    case 'revisions':
-      return form.revisionRounds;
-    case 'confidentiality':
-      return form.confidentiality;
-    case 'intellectualProperty':
-      return form.intellectualProperty;
-    case 'termination':
-      return form.termination;
-    case 'disputeResolution':
-      return form.disputeResolution;
-    case 'governingLaw':
-      return form.governingLaw;
-    case 'terms':
-      return form.terms;
-    default:
-      return '';
-  }
-}
-
-function normalizeTemplate(template) {
-  const customSectionsFromLegacy = Array.isArray(template.customFields)
-    ? template.customFields.map((field) => ({
-        id: field.id || createCustomField().id,
-        type: 'custom',
-        title: field.title || '',
-        body: field.body || '',
-      }))
-    : [];
-
-  const defaultSections = getDefaultSectionOrder();
-
-  if (!Array.isArray(template.sectionOrder) || template.sectionOrder.length === 0) {
-    return {
-      ...template,
-      customFields: customSectionsFromLegacy,
-      sectionOrder: [...defaultSections, ...customSectionsFromLegacy],
-    };
-  }
-
-  const normalizedOrder = template.sectionOrder
-    .map((section) => {
-      if (section?.type === 'custom') {
-        return {
-          id: section.id || createCustomField().id,
-          type: 'custom',
-          title: section.title || '',
-          body: section.body || '',
-        };
-      }
-
-      if (section?.type === 'default' && defaultSectionMap[section.id]) {
-        return { id: section.id, type: 'default' };
-      }
-
-      return null;
-    })
-    .filter(Boolean);
-
-  const hasDefaultSection = normalizedOrder.some((section) => section.type === 'default');
-  return {
-    ...template,
-    customFields: normalizedOrder.filter((section) => section.type === 'custom'),
-    sectionOrder: hasDefaultSection ? normalizedOrder : [...defaultSections, ...normalizedOrder],
   };
 }
 
@@ -224,7 +117,6 @@ export default function HomePage() {
   const [shareLink, setShareLink] = useState('');
   const [defaultSectionToAdd, setDefaultSectionToAdd] = useState(defaultSectionCatalog[0].id);
   const [draggingSectionId, setDraggingSectionId] = useState('');
-  const [showSectionEditor, setShowSectionEditor] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -258,7 +150,10 @@ export default function HomePage() {
       try {
         const savedTemplates = JSON.parse(savedTemplatesRaw);
         if (Array.isArray(savedTemplates) && savedTemplates.length > 0) {
-          const normalizedTemplates = savedTemplates.map(normalizeTemplate);
+          const normalizedTemplates = savedTemplates.map((template) => ({
+            ...template,
+            customFields: Array.isArray(template.customFields) ? template.customFields : [],
+          }));
           setTemplates(normalizedTemplates);
           setSelectedTemplateId(normalizedTemplates[0].id);
           setForm(normalizedTemplates[0]);
@@ -344,54 +239,75 @@ export default function HomePage() {
     };
   }, [contracts]);
 
-  const previewSections = useMemo(() => {
-    const sections = Array.isArray(form.sectionOrder) ? form.sectionOrder : getDefaultSectionOrder();
-    return sections
-      .map((section) => {
-        if (section.type === 'default') {
-          const definition = defaultSectionMap[section.id];
-          if (!definition) {
-            return null;
-          }
-          return {
-            id: section.id,
-            title: definition.title,
-            body: getSectionBody(section.id, form, companyProfile).trim(),
-          };
-        }
-
-        if (section.type === 'custom') {
-          return {
-            id: section.id,
-            title: (section.title || '').trim() || 'Custom field',
-            body: (section.body || '').trim(),
-          };
-        }
-
-        return null;
-      })
-      .filter((section) => section && section.body);
-  }, [form, companyProfile]);
-
-  const availableDefaultSections = useMemo(() => {
-    const activeDefaultIds = new Set(
-      (Array.isArray(form.sectionOrder) ? form.sectionOrder : [])
-        .filter((section) => section.type === 'default')
-        .map((section) => section.id),
-    );
-    return defaultSectionCatalog.filter((section) => !activeDefaultIds.has(section.id));
-  }, [form.sectionOrder]);
-
-  useEffect(() => {
-    if (availableDefaultSections.length === 0) {
-      setDefaultSectionToAdd('');
-      return;
-    }
-
-    if (!availableDefaultSections.some((section) => section.id === defaultSectionToAdd)) {
-      setDefaultSectionToAdd(availableDefaultSections[0].id);
-    }
-  }, [availableDefaultSections, defaultSectionToAdd]);
+  const previewSections = useMemo(
+    () => [
+      {
+        title: 'Agreement',
+        body: `${form.agreementType} between ${companyProfile.businessName} (Provider) and ${form.clientName} (Client).`,
+      },
+      {
+        title: 'Client contact',
+        body: `${form.clientEmail} | ${form.clientAddress}`,
+      },
+      {
+        title: 'Scope',
+        body: form.scope,
+      },
+      {
+        title: 'Deliverables',
+        body: form.deliverables,
+      },
+      {
+        title: 'Timeline',
+        body: `${form.startDate} through ${form.endDate}`,
+      },
+      {
+        title: 'Compensation',
+        body: `${formatMoney(Number(form.price || 0))}. Payment schedule: ${form.paymentSchedule}`,
+      },
+      {
+        title: 'Late fees',
+        body: form.lateFee,
+      },
+      {
+        title: 'Revisions',
+        body: form.revisionRounds,
+      },
+      {
+        title: 'Confidentiality',
+        body: form.confidentiality,
+      },
+      {
+        title: 'Intellectual property',
+        body: form.intellectualProperty,
+      },
+      {
+        title: 'Termination',
+        body: form.termination,
+      },
+      {
+        title: 'Dispute resolution',
+        body: form.disputeResolution,
+      },
+      {
+        title: 'Governing law',
+        body: form.governingLaw,
+      },
+      {
+        title: 'Additional terms',
+        body: form.terms,
+      },
+      ...(Array.isArray(form.customFields)
+        ? form.customFields
+            .filter((field) => field.title.trim() || field.body.trim())
+            .map((field) => ({
+              title: field.title.trim() || 'Custom field',
+              body: field.body.trim(),
+            }))
+        : []),
+    ],
+    [form, companyProfile.businessName],
+  );
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -447,86 +363,51 @@ export default function HomePage() {
       return;
     }
 
-    setForm(normalizeTemplate(template));
+    setForm({
+      ...template,
+      customFields: Array.isArray(template.customFields) ? template.customFields : [],
+    });
     setBanner(`Template "${template.templateName}" applied.`);
   }
 
   function addCustomField() {
     setForm((prev) => ({
       ...prev,
-      sectionOrder: [...(Array.isArray(prev.sectionOrder) ? prev.sectionOrder : []), createCustomField()],
+      customFields: [...(Array.isArray(prev.customFields) ? prev.customFields : []), createCustomField()],
     }));
   }
 
   function updateCustomField(fieldId, key, value) {
     setForm((prev) => ({
       ...prev,
-      sectionOrder: (Array.isArray(prev.sectionOrder) ? prev.sectionOrder : []).map((field) =>
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).map((field) =>
         field.id === fieldId ? { ...field, [key]: value } : field,
       ),
     }));
   }
 
-  function removeSection(fieldId) {
+  function removeCustomField(fieldId) {
     setForm((prev) => ({
       ...prev,
-      sectionOrder: (Array.isArray(prev.sectionOrder) ? prev.sectionOrder : []).filter(
+      customFields: (Array.isArray(prev.customFields) ? prev.customFields : []).filter(
         (field) => field.id !== fieldId,
       ),
     }));
   }
 
-  function addDefaultSection() {
-    if (!defaultSectionToAdd) {
-      return;
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      sectionOrder: [
-        ...(Array.isArray(prev.sectionOrder) ? prev.sectionOrder : []),
-        { id: defaultSectionToAdd, type: 'default' },
-      ],
-    }));
-    setBanner(`${defaultSectionMap[defaultSectionToAdd].title} added to the contract.`);
-  }
-
-  function moveSection(sourceId, targetId) {
-    if (!sourceId || !targetId || sourceId === targetId) {
-      return;
-    }
-
-    setForm((prev) => {
-      const sections = Array.isArray(prev.sectionOrder) ? [...prev.sectionOrder] : [];
-      const sourceIndex = sections.findIndex((section) => section.id === sourceId);
-      const targetIndex = sections.findIndex((section) => section.id === targetId);
-      if (sourceIndex < 0 || targetIndex < 0) {
-        return prev;
-      }
-      const [moved] = sections.splice(sourceIndex, 1);
-      sections.splice(targetIndex, 0, moved);
-      return { ...prev, sectionOrder: sections };
-    });
-  }
-
-  function moveSectionByStep(sectionId, step) {
-    setForm((prev) => {
-      const sections = Array.isArray(prev.sectionOrder) ? [...prev.sectionOrder] : [];
-      const sourceIndex = sections.findIndex((section) => section.id === sectionId);
-      const nextIndex = sourceIndex + step;
-      if (sourceIndex < 0 || nextIndex < 0 || nextIndex >= sections.length) {
-        return prev;
-      }
-      const [moved] = sections.splice(sourceIndex, 1);
-      sections.splice(nextIndex, 0, moved);
-      return { ...prev, sectionOrder: sections };
-    });
-  }
-
   function generateShareLink() {
     const slug = form.clientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const signId = `${slug}-${Date.now().toString().slice(-6)}`;
-    const nextLink = `${window.location.origin}/sign/${signId}`;
+    const shareData = {
+      id: signId,
+      contractId: null,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+    const nextLink = `${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`;
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -539,13 +420,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: null,
-      form,
-      companyProfile,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setShareLink(nextLink);
@@ -565,9 +440,19 @@ export default function HomePage() {
       dueDate: form.endDate,
     };
 
+    const shareData = {
+      id: signId,
+      contractId: nextId,
+      form,
+      companyProfile,
+      signatureFields,
+      createdAt: new Date().toISOString(),
+    };
+    const payload = encodeSharePayload(shareData);
+
     setContracts((prev) => [nextContract, ...prev]);
     setSelectedId(nextId);
-    setShareLink(`${window.location.origin}/sign/${signId}`);
+    setShareLink(`${getShareBaseUrl()}/sign/${signId}?data=${encodeURIComponent(payload)}`);
 
     const savedSharedRaw = window.localStorage.getItem(sharedContractsStorageKey);
     let sharedContracts = {};
@@ -580,13 +465,7 @@ export default function HomePage() {
       }
     }
 
-    sharedContracts[signId] = {
-      id: signId,
-      contractId: nextId,
-      form,
-      companyProfile,
-      createdAt: new Date().toISOString(),
-    };
+    sharedContracts[signId] = shareData;
 
     window.localStorage.setItem(sharedContractsStorageKey, JSON.stringify(sharedContracts));
     setBanner(`New contract ${nextId} created for ${form.clientName}.`);
@@ -989,114 +868,49 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="field section-editor-wrapper">
-            <button
-              className="ghost section-editor-toggle"
-              type="button"
-              onClick={() => setShowSectionEditor((prev) => !prev)}
-            >
-              {showSectionEditor ? 'Hide section editor' : 'Customize contract section order'}
-            </button>
-
-            {showSectionEditor ? (
-              <div className="section-editor-panel">
-                <p className="small">
-                  Drag sections to place them anywhere in the contract. You can remove built-in sections and add them
-                  back later.
-                </p>
-                <div className="section-add-controls">
-                  <button className="ghost" type="button" onClick={addCustomField}>
-                    Add custom field
-                  </button>
-                  <div className="section-add-default">
-                    <select
-                      value={defaultSectionToAdd}
-                      onChange={(event) => setDefaultSectionToAdd(event.target.value)}
-                      disabled={availableDefaultSections.length === 0}
-                    >
-                      {availableDefaultSections.length > 0 ? (
-                        availableDefaultSections.map((section) => (
-                          <option key={section.id} value={section.id}>
-                            {section.title}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">All built-in sections are already included</option>
-                      )}
-                    </select>
+          <div className="field">
+            <div className="custom-fields-head">
+              <label>Additional custom fields</label>
+              <button className="ghost" type="button" onClick={addCustomField}>
+                Add field
+              </button>
+            </div>
+            {Array.isArray(form.customFields) && form.customFields.length > 0 ? (
+              <div className="custom-fields-list">
+                {form.customFields.map((field, index) => (
+                  <div key={field.id} className="custom-field-card">
+                    <div className="field">
+                      <label htmlFor={`customTitle-${field.id}`}>Field title #{index + 1}</label>
+                      <input
+                        id={`customTitle-${field.id}`}
+                        value={field.title}
+                        onChange={(event) => updateCustomField(field.id, 'title', event.target.value)}
+                        placeholder="e.g. Non-solicitation"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`customBody-${field.id}`}>Field details</label>
+                      <textarea
+                        id={`customBody-${field.id}`}
+                        rows="2"
+                        value={field.body}
+                        onChange={(event) => updateCustomField(field.id, 'body', event.target.value)}
+                        placeholder="Describe this contract clause."
+                      />
+                    </div>
                     <button
-                      className="ghost"
+                      className="ghost remove-field-button"
                       type="button"
-                      onClick={addDefaultSection}
-                      disabled={availableDefaultSections.length === 0}
+                      onClick={() => removeCustomField(field.id)}
                     >
-                      Add built-in field
+                      Remove field
                     </button>
                   </div>
-                </div>
-                {Array.isArray(form.sectionOrder) && form.sectionOrder.length > 0 ? (
-                  <div className="custom-fields-list">
-                    {form.sectionOrder.map((section, index) => (
-                      <div
-                        key={section.id}
-                        className="custom-field-card"
-                        draggable
-                        onDragStart={() => setDraggingSectionId(section.id)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => {
-                          moveSection(draggingSectionId, section.id);
-                          setDraggingSectionId('');
-                        }}
-                        onDragEnd={() => setDraggingSectionId('')}
-                      >
-                        <div className="section-card-head">
-                          <p className="kicker">Position #{index + 1}</p>
-                          <div className="section-actions">
-                            <button className="ghost" type="button" onClick={() => moveSectionByStep(section.id, -1)}>
-                              ↑
-                            </button>
-                            <button className="ghost" type="button" onClick={() => moveSectionByStep(section.id, 1)}>
-                              ↓
-                            </button>
-                            <button className="ghost" type="button" onClick={() => removeSection(section.id)}>
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-
-                        {section.type === 'default' ? (
-                          <p className="small section-default-name">{defaultSectionMap[section.id]?.title || section.id}</p>
-                        ) : (
-                          <>
-                            <div className="field">
-                              <label htmlFor={`customTitle-${section.id}`}>Field title</label>
-                              <input
-                                id={`customTitle-${section.id}`}
-                                value={section.title}
-                                onChange={(event) => updateCustomField(section.id, 'title', event.target.value)}
-                                placeholder="e.g. Non-solicitation"
-                              />
-                            </div>
-                            <div className="field">
-                              <label htmlFor={`customBody-${section.id}`}>Field details</label>
-                              <textarea
-                                id={`customBody-${section.id}`}
-                                rows="2"
-                                value={section.body}
-                                onChange={(event) => updateCustomField(section.id, 'body', event.target.value)}
-                                placeholder="Describe this contract clause."
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="small">No sections in this contract. Add a built-in field or a custom field.</p>
-                )}
+                ))}
               </div>
-            ) : null}
+            ) : (
+              <p className="small">No custom fields yet. Add one to include extra clauses in this contract.</p>
+            )}
           </div>
 
           <div className="button-row">
